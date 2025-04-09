@@ -11,14 +11,11 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include "dhcp.h"
+
 enum {
     dhcp_server_port =  67,
     dhcp_client_port =  68,
-
-    dhcp_chaddr_len =   16,
-    dhcp_sname_len =    64,
-    dhcp_filename_len = 128,
-    dhcp_options_len =  312,
 
     orig_dhcp_ip_1 =    192,
     orig_dhcp_ip_2 =    168,
@@ -27,25 +24,6 @@ enum {
 };
 
 #define ORIG_DHCP_IP (orig_dhcp_ip_1 | (orig_dhcp_ip_2 << 8) | (orig_dhcp_ip_3 << 16) | (orig_dhcp_ip_4 << 24))
-
-struct dhcp_msg {
-    uint8_t opcode;
-    uint8_t htype;
-    uint8_t hlen;
-    uint8_t hops;
-    uint32_t xid;
-    uint16_t secs;
-    uint16_t flags;
-    uint32_t ciaddr;
-    uint32_t yiaddr;
-    uint32_t siaddr;
-    uint32_t giaddr;
-    uint8_t chaddr[dhcp_chaddr_len];
-    char sname[dhcp_sname_len];
-    char filename[dhcp_filename_len];
-    uint32_t cookie;
-    uint8_t options[dhcp_options_len];
-} __attribute__((__packed__));
 
 void dhcp_handle(int socket_fd, struct dhcp_msg *msg, struct sockaddr_in *client_addr);
 
@@ -130,6 +108,7 @@ void dhcp_handle(int socket_fd, struct dhcp_msg *msg, struct sockaddr_in *client
 
     memset(&msg->options, 0, dhcp_options_len * sizeof(uint8_t));
 
+    /* TODO: Move to dhcp.c */
     msg->options[0] = 53;
     msg->options[1] = 1;
     msg->options[2] = 6;
