@@ -1,13 +1,15 @@
 #ifndef DHCP_SUP_SERVER_DHCP_H
 #define DHCP_SUP_SERVER_DHCP_H
 
+#include <stddef.h>
 #include <stdint.h>
+#include <unistd.h>
 
 enum {
-    dhcp_chaddr_len =   16,
-    dhcp_sname_len =    64,
+    dhcp_chaddr_len   = 16,
+    dhcp_sname_len    = 64,
     dhcp_filename_len = 128,
-    dhcp_options_len =  312
+    dhcp_options_len  = 312
 };
 
 struct dhcp_msg {
@@ -29,5 +31,27 @@ struct dhcp_msg {
     uint8_t options[dhcp_options_len];
 } __attribute__((__packed__));
 
+enum dhcp_opt {
+    dhcp_opt_msg_type = 53,
+    dhcp_opt_srv_id   = 54,
+    dhcp_opt_err_msg  = 56
+};
+
+enum dhcp_msg_type {
+    dhcp_msg_type_discover = 1,
+    dhcp_msg_type_offer,
+    dhcp_msg_type_request,
+    dhcp_msg_type_decline,
+    dhcp_msg_type_ack,
+    dhcp_msg_type_nak,
+    dhcp_msg_type_release,
+    dhcp_msg_type_inform
+};
+
+typedef ssize_t dhcp_opt_offset;
+
+dhcp_opt_offset dhcp_opt_begin(struct dhcp_msg *msg);
+dhcp_opt_offset dhcp_opt(struct dhcp_msg *msg, dhcp_opt_offset offset, enum dhcp_opt opt, const void *opt_data, size_t opt_data_len);
+dhcp_opt_offset dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_offset offset);
 
 #endif

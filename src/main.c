@@ -14,16 +14,14 @@
 #include "dhcp.h"
 
 enum {
-    dhcp_server_port =  67,
-    dhcp_client_port =  68,
+    dhcp_server_port = 67,
+    dhcp_client_port = 68,
 
-    orig_dhcp_ip_1 =    192,
-    orig_dhcp_ip_2 =    168,
-    orig_dhcp_ip_3 =    1,
-    orig_dhcp_ip_4 =    1
+    orig_dhcp_ip_1 =   192,
+    orig_dhcp_ip_2 =   168,
+    orig_dhcp_ip_3 =   1,
+    orig_dhcp_ip_4 =   1
 };
-
-#define ORIG_DHCP_IP (orig_dhcp_ip_1 | (orig_dhcp_ip_2 << 8) | (orig_dhcp_ip_3 << 16) | (orig_dhcp_ip_4 << 24))
 
 void dhcp_handle(int socket_fd, struct dhcp_msg *msg, struct sockaddr_in *client_addr);
 
@@ -63,7 +61,7 @@ int main(void) {
     pid = 0;
 
     while((msg_len = recvfrom(socket_fd, &msg, sizeof(msg), 0, (struct sockaddr *) &client_addr, &client_addr_len)) > 0) {
-        if(msg_len < sizeof(msg) - dhcp_options_len) {
+        if(msg_len < sizeof(msg) - sizeof(msg.options)) {
             printf("Received incomplete message on DHCP port\n");
             continue;
         }
@@ -100,42 +98,36 @@ int main(void) {
 }
 
 void dhcp_handle(int socket_fd, struct dhcp_msg *msg, struct sockaddr_in *client_addr) {
+    uint8_t opt_data[8];
+    dhcp_opt_offset offset;
+
+    offset = dhcp_opt_begin(msg);
+
+    opt_data[0] = dhcp_msg_type_nak;
+    offset = dhcp_opt(msg, offset, dhcp_opt_msg_type, opt_data, 1);
+
+    opt_data[0] = orig_dhcp_ip_1;
+    opt_data[1] = orig_dhcp_ip_2;
+    opt_data[2] = orig_dhcp_ip_3;
+    opt_data[3] = orig_dhcp_ip_4;
+    offset = dhcp_opt(msg, offset, dhcp_opt_srv_id, opt_data, 4);
+
+    offset = dhcp_opt(msg, offset, dhcp_opt_err_msg, "ERROR", 6);
+
+    offset = dhcp_opt_end(msg, offset);
+
     msg->opcode = 2;
     msg->ciaddr = 0;
     msg->yiaddr = 0;
     msg->siaddr = 0;
     msg->giaddr = 0;
 
-    memset(&msg->options, 0, dhcp_options_len * sizeof(uint8_t));
-
-    /* TODO: Move to dhcp.c */
-    msg->options[0] = 53;
-    msg->options[1] = 1;
-    msg->options[2] = 6;
-
-    msg->options[3] = 54;
-    msg->options[4] = 4;
-    msg->options[5] = orig_dhcp_ip_1;
-    msg->options[6] = orig_dhcp_ip_2;
-    msg->options[7] = orig_dhcp_ip_3;
-    msg->options[8] = orig_dhcp_ip_4;
-
-    msg->options[9] = 56;
-    msg->options[10] = 5;
-    msg->options[11] = 123;
-    msg->options[12] = 124;
-    msg->options[13] = 125;
-    msg->options[14] = 126;
-    msg->options[15] = 127;
-
-    msg->options[16] = 255;
-
     client_addr->sin_family = AF_INET;
     client_addr->sin_addr.s_addr = htonl(INADDR_BROADCAST);
     client_addr->sin_port = htons(dhcp_client_port);
 
     for(int i = 0; i < 60; i++) {
-        if(sendto(socket_fd, &msg, sizeof(struct dhcp_msg) - dhcp_options_len + 17, 0, (struct sockaddr *) client_addr, sizeof(struct sockaddr_in)) < 0) {
+        if(sendto(socket_fd, msg, sizeof(struct dhcp_msg) - dhcp_options_len + offset, 0, (struct sockaddr *) client_addr, sizeof(struct sockaddr_in)) < 0) {
             perror("sendto()");
             exit(EXIT_FAILURE);
         }
