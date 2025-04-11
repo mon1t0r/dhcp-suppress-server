@@ -24,6 +24,7 @@ enum {
 };
 
 void dhcp_handle(int socket_fd, struct dhcp_msg *msg, struct sockaddr_in *client_addr);
+size_t dhcp_msg_nak(struct dhcp_msg *msg);
 
 int main(void) {
     int socket_fd;
@@ -98,8 +99,39 @@ int main(void) {
 }
 
 void dhcp_handle(int socket_fd, struct dhcp_msg *msg, struct sockaddr_in *client_addr) {
-    uint8_t opt_data[8];
+    size_t reply_size;
+
+    client_addr->sin_family = AF_INET;
+    client_addr->sin_addr.s_addr = htonl(INADDR_BROADCAST);
+    client_addr->sin_port = htons(dhcp_client_port);
+
+    reply_size = dhcp_msg_nak(msg);
+
+    for(int i = 0; i < 60; i++) {
+        if(sendto(socket_fd, msg, reply_size, 0, (struct sockaddr *) client_addr, sizeof(struct sockaddr_in)) < 0) {
+            perror("sendto()");
+            exit(EXIT_FAILURE);
+        }
+
+        struct timespec ts;
+        ts.tv_sec = 0;
+        ts.tv_nsec = 1 * 1000000;
+        nanosleep(&ts, &ts);
+    }
+}
+
+size_t dhcp_msg_nak(struct dhcp_msg *msg) {
+    uint8_t opt_data[4];
     dhcp_opt_offset offset;
+
+    msg->opcode = dhcp_opcode_reply;
+    msg->hops = 0;
+    msg->secs = 0;
+    msg->flags = 0;
+    msg->ciaddr = 0;
+    msg->yiaddr = 0;
+    msg->siaddr = 0;
+    msg->giaddr = 0;
 
     offset = dhcp_opt_begin(msg);
 
@@ -112,29 +144,7 @@ void dhcp_handle(int socket_fd, struct dhcp_msg *msg, struct sockaddr_in *client
     opt_data[3] = orig_dhcp_ip_4;
     offset = dhcp_opt(msg, offset, dhcp_opt_srv_id, opt_data, 4);
 
-    offset = dhcp_opt(msg, offset, dhcp_opt_err_msg, "ERROR", 6);
-
     offset = dhcp_opt_end(msg, offset);
 
-    msg->opcode = 2;
-    msg->ciaddr = 0;
-    msg->yiaddr = 0;
-    msg->siaddr = 0;
-    msg->giaddr = 0;
-
-    client_addr->sin_family = AF_INET;
-    client_addr->sin_addr.s_addr = htonl(INADDR_BROADCAST);
-    client_addr->sin_port = htons(dhcp_client_port);
-
-    for(int i = 0; i < 60; i++) {
-        if(sendto(socket_fd, msg, sizeof(struct dhcp_msg) - dhcp_options_len + offset, 0, (struct sockaddr *) client_addr, sizeof(struct sockaddr_in)) < 0) {
-            perror("sendto()");
-            exit(EXIT_FAILURE);
-        }
-
-        struct timespec ts;
-        ts.tv_sec = 0;
-        ts.tv_nsec = 1 * 1000000;
-        nanosleep(&ts, &ts);
-    }
+    return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(uint8_t);
 }

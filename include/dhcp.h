@@ -31,6 +31,11 @@ struct dhcp_msg {
     uint8_t options[dhcp_options_len];
 } __attribute__((__packed__));
 
+enum dhcp_opcode {
+    dhcp_opcode_request = 1,
+    dhcp_opcode_reply   = 2
+};
+
 enum dhcp_opt {
     dhcp_opt_msg_type = 53,
     dhcp_opt_srv_id   = 54,
