@@ -22,7 +22,7 @@ enum {
     spoof_dhcp_ip_1  = 192,
     spoof_dhcp_ip_2  = 168,
     spoof_dhcp_ip_3  = 1,
-    spoof_dhcp_ip_4  = 254,
+    spoof_dhcp_ip_4  = 211,
 
     conf_ip_addr_1   = 1,
     conf_ip_addr_2   = 2,
@@ -52,6 +52,42 @@ enum {
 
 #define ip_to_num(i1, i2, i3, i4) (i1 | (i2 << 8) | (i3 << 16) | (i4 << 24))
 
+void dhcp_add_reply_options(struct dhcp_msg *msg, dhcp_opt_offset *offset) {
+    uint8_t opt_data[4];
+
+    opt_data[0] = 0;
+    opt_data[1] = 255;
+    opt_data[2] = 255;
+    opt_data[3] = 255;
+    dhcp_opt(msg, offset, dhcp_opt_address_time, opt_data, 4);
+    dhcp_opt(msg, offset, dhcp_opt_renewal_time, opt_data, 4);
+    dhcp_opt(msg, offset, dhcp_opt_rebinding_time, opt_data, 4);
+
+    opt_data[0] = conf_subnet_mask_1;
+    opt_data[1] = conf_subnet_mask_2;
+    opt_data[2] = conf_subnet_mask_3;
+    opt_data[3] = conf_subnet_mask_4;
+    dhcp_opt(msg, offset, dhcp_opt_subnet_mask, opt_data, 4);
+
+    opt_data[0] = conf_broadcast_addr_1;
+    opt_data[1] = conf_broadcast_addr_2;
+    opt_data[2] = conf_broadcast_addr_3;
+    opt_data[3] = conf_broadcast_addr_4;
+    dhcp_opt(msg, offset, dhcp_opt_broadcast_address, opt_data, 4);
+
+    opt_data[0] = conf_router_ip_1;
+    opt_data[1] = conf_router_ip_2;
+    opt_data[2] = conf_router_ip_3;
+    opt_data[3] = conf_router_ip_4;
+    dhcp_opt(msg, offset, dhcp_opt_router, opt_data, 4);
+
+    opt_data[0] = conf_dns_ip_1;
+    opt_data[1] = conf_dns_ip_2;
+    opt_data[2] = conf_dns_ip_3;
+    opt_data[3] = conf_dns_ip_4;
+    dhcp_opt(msg, offset, dhcp_opt_dns, opt_data, 4);
+}
+
 size_t dhcp_reply_ack(struct dhcp_msg *msg, enum dhcp_msg_type msg_type_ack, uint8_t dhcp_ip[4]) {
     uint8_t opt_data[1];
     dhcp_opt_offset offset;
@@ -61,8 +97,12 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, enum dhcp_msg_type msg_type_ack, uin
     msg->secs = 0;
     msg->flags = htons(0x8000);
     msg->ciaddr = 0;
-    msg->yiaddr = 0;
-    msg->siaddr = 0;
+    if(msg_type_ack == dhcp_msg_type_ack) {
+        msg->yiaddr = ip_to_num(conf_ip_addr_1, conf_ip_addr_2, conf_ip_addr_3, conf_ip_addr_4);
+    } else {
+        msg->yiaddr = 0;
+    }
+    msg->siaddr = ip_to_num(spoof_dhcp_ip_1, spoof_dhcp_ip_2, spoof_dhcp_ip_3, spoof_dhcp_ip_4);
     msg->giaddr = 0;
 
     dhcp_opt_begin(msg, &offset);
@@ -73,6 +113,8 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, enum dhcp_msg_type msg_type_ack, uin
     if(dhcp_ip != NULL) {
         dhcp_opt(msg, &offset, dhcp_opt_srv_id, dhcp_ip, 4);
     }
+
+    dhcp_add_reply_options(msg, &offset);
 
     dhcp_opt_end(msg, &offset);
 
@@ -103,37 +145,7 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg) {
     opt_data[3] = spoof_dhcp_ip_4;
     dhcp_opt(msg, &offset, dhcp_opt_srv_id, opt_data, 4);
 
-    opt_data[0] = 128;
-    opt_data[1] = 255;
-    opt_data[2] = 255;
-    opt_data[3] = 255;
-    dhcp_opt(msg, &offset, dhcp_opt_address_time, opt_data, 4);
-    dhcp_opt(msg, &offset, dhcp_opt_renewal_time, opt_data, 4);
-    dhcp_opt(msg, &offset, dhcp_opt_rebinding_time, opt_data, 4);
-
-    opt_data[0] = conf_subnet_mask_1;
-    opt_data[1] = conf_subnet_mask_2;
-    opt_data[2] = conf_subnet_mask_3;
-    opt_data[3] = conf_subnet_mask_4;
-    dhcp_opt(msg, &offset, dhcp_opt_subnet_mask, opt_data, 4);
-
-    opt_data[0] = conf_broadcast_addr_1;
-    opt_data[1] = conf_broadcast_addr_2;
-    opt_data[2] = conf_broadcast_addr_3;
-    opt_data[3] = conf_broadcast_addr_4;
-    dhcp_opt(msg, &offset, dhcp_opt_broadcast_address, opt_data, 4);
-
-    opt_data[0] = conf_router_ip_1;
-    opt_data[1] = conf_router_ip_2;
-    opt_data[2] = conf_router_ip_3;
-    opt_data[3] = conf_router_ip_4;
-    dhcp_opt(msg, &offset, dhcp_opt_router, opt_data, 4);
-
-    opt_data[0] = conf_dns_ip_1;
-    opt_data[1] = conf_dns_ip_2;
-    opt_data[2] = conf_dns_ip_3;
-    opt_data[3] = conf_dns_ip_4;
-    dhcp_opt(msg, &offset, dhcp_opt_dns, opt_data, 4);
+    dhcp_add_reply_options(msg, &offset);
 
     dhcp_opt_end(msg, &offset);
 
@@ -142,22 +154,25 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg) {
 
 size_t dhcp_handle_request(struct dhcp_msg *msg) {
     uint8_t *opt_data_ptr;
+    uint8_t srv_ip[4];
 
-    if(dhcp_opt_get(msg, dhcp_opt_srv_id, &opt_data_ptr) != 4) {
+    if(dhcp_opt_get(msg, dhcp_opt_srv_id, &opt_data_ptr) == 4) {
+        memcpy(srv_ip, opt_data_ptr, 4);
+    } else {
         opt_data_ptr = NULL;
     }
 
     if(
         opt_data_ptr != NULL &&
-        opt_data_ptr[0] == spoof_dhcp_ip_1 &&
-        opt_data_ptr[1] == spoof_dhcp_ip_2 &&
-        opt_data_ptr[2] == spoof_dhcp_ip_3 &&
-        opt_data_ptr[3] == spoof_dhcp_ip_4
+        srv_ip[0] == spoof_dhcp_ip_1 &&
+        srv_ip[1] == spoof_dhcp_ip_2 &&
+        srv_ip[2] == spoof_dhcp_ip_3 &&
+        srv_ip[3] == spoof_dhcp_ip_4
     ) {
-        return dhcp_reply_ack(msg, dhcp_msg_type_ack, opt_data_ptr);
+        return dhcp_reply_ack(msg, dhcp_msg_type_ack, srv_ip);
     }
 
-    return dhcp_reply_ack(msg, dhcp_msg_type_nak, opt_data_ptr);
+    return dhcp_reply_ack(msg, dhcp_msg_type_nak, srv_ip);
 }
 
 ssize_t dhcp_create_reply(struct dhcp_msg *msg) {
