@@ -65,16 +65,16 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, enum dhcp_msg_type msg_type_ack, uin
     msg->siaddr = 0;
     msg->giaddr = 0;
 
-    offset = dhcp_opt_begin(msg);
+    dhcp_opt_begin(msg, &offset);
 
     opt_data[0] = msg_type_ack;
-    offset = dhcp_opt(msg, offset, dhcp_opt_msg_type, opt_data, 1);
+    dhcp_opt(msg, &offset, dhcp_opt_msg_type, opt_data, 1);
 
     if(dhcp_ip != NULL) {
-        offset = dhcp_opt(msg, offset, dhcp_opt_srv_id, dhcp_ip, 4);
+        dhcp_opt(msg, &offset, dhcp_opt_srv_id, dhcp_ip, 4);
     }
 
-    offset = dhcp_opt_end(msg, offset);
+    dhcp_opt_end(msg, &offset);
 
     return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(uint8_t);
 }
@@ -92,50 +92,50 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg) {
     msg->siaddr = ip_to_num(spoof_dhcp_ip_1, spoof_dhcp_ip_2, spoof_dhcp_ip_3, spoof_dhcp_ip_4);
     msg->giaddr = 0;
 
-    offset = dhcp_opt_begin(msg);
+    dhcp_opt_begin(msg, &offset);
 
     opt_data[0] = dhcp_msg_type_offer;
-    offset = dhcp_opt(msg, offset, dhcp_opt_msg_type, opt_data, 1);
+    dhcp_opt(msg, &offset, dhcp_opt_msg_type, opt_data, 1);
 
     opt_data[0] = spoof_dhcp_ip_1;
     opt_data[1] = spoof_dhcp_ip_2;
     opt_data[2] = spoof_dhcp_ip_3;
     opt_data[3] = spoof_dhcp_ip_4;
-    offset = dhcp_opt(msg, offset, dhcp_opt_srv_id, opt_data, 4);
+    dhcp_opt(msg, &offset, dhcp_opt_srv_id, opt_data, 4);
 
     opt_data[0] = 128;
     opt_data[1] = 255;
     opt_data[2] = 255;
     opt_data[3] = 255;
-    offset = dhcp_opt(msg, offset, dhcp_opt_address_time, opt_data, 4);
-    offset = dhcp_opt(msg, offset, dhcp_opt_renewal_time, opt_data, 4);
-    offset = dhcp_opt(msg, offset, dhcp_opt_rebinding_time, opt_data, 4);
+    dhcp_opt(msg, &offset, dhcp_opt_address_time, opt_data, 4);
+    dhcp_opt(msg, &offset, dhcp_opt_renewal_time, opt_data, 4);
+    dhcp_opt(msg, &offset, dhcp_opt_rebinding_time, opt_data, 4);
 
     opt_data[0] = conf_subnet_mask_1;
     opt_data[1] = conf_subnet_mask_2;
     opt_data[2] = conf_subnet_mask_3;
     opt_data[3] = conf_subnet_mask_4;
-    offset = dhcp_opt(msg, offset, dhcp_opt_subnet_mask, opt_data, 4);
+    dhcp_opt(msg, &offset, dhcp_opt_subnet_mask, opt_data, 4);
 
     opt_data[0] = conf_broadcast_addr_1;
     opt_data[1] = conf_broadcast_addr_2;
     opt_data[2] = conf_broadcast_addr_3;
     opt_data[3] = conf_broadcast_addr_4;
-    offset = dhcp_opt(msg, offset, dhcp_opt_broadcast_address, opt_data, 4);
+    dhcp_opt(msg, &offset, dhcp_opt_broadcast_address, opt_data, 4);
 
     opt_data[0] = conf_router_ip_1;
     opt_data[1] = conf_router_ip_2;
     opt_data[2] = conf_router_ip_3;
     opt_data[3] = conf_router_ip_4;
-    offset = dhcp_opt(msg, offset, dhcp_opt_router, opt_data, 4);
+    dhcp_opt(msg, &offset, dhcp_opt_router, opt_data, 4);
 
     opt_data[0] = conf_dns_ip_1;
     opt_data[1] = conf_dns_ip_2;
     opt_data[2] = conf_dns_ip_3;
     opt_data[3] = conf_dns_ip_4;
-    offset = dhcp_opt(msg, offset, dhcp_opt_dns, opt_data, 4);
+    dhcp_opt(msg, &offset, dhcp_opt_dns, opt_data, 4);
 
-    offset = dhcp_opt_end(msg, offset);
+    dhcp_opt_end(msg, &offset);
 
     return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(uint8_t);
 }
