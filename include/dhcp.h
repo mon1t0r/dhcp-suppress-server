@@ -37,9 +37,17 @@ enum dhcp_opcode {
 };
 
 enum dhcp_opt {
-    dhcp_opt_msg_type = 53,
-    dhcp_opt_srv_id   = 54,
-    dhcp_opt_err_msg  = 56
+    dhcp_opt_subnet_mask       = 1,
+    dhcp_opt_router            = 3,
+    dhcp_opt_dns               = 6,
+    dhcp_opt_broadcast_address = 28,
+    dhcp_opt_address_time      = 51,
+    dhcp_opt_msg_type          = 53,
+    dhcp_opt_srv_id            = 54,
+    dhcp_opt_err_msg           = 56,
+    dhcp_opt_renewal_time      = 58,
+    dhcp_opt_rebinding_time    = 59,
+    dhcp_opt_break             = 255
 };
 
 enum dhcp_msg_type {
@@ -55,8 +63,10 @@ enum dhcp_msg_type {
 
 typedef ssize_t dhcp_opt_offset;
 
+/* TODO: Change offets */
 dhcp_opt_offset dhcp_opt_begin(struct dhcp_msg *msg);
 dhcp_opt_offset dhcp_opt(struct dhcp_msg *msg, dhcp_opt_offset offset, enum dhcp_opt opt, const void *opt_data, size_t opt_data_len);
 dhcp_opt_offset dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_offset offset);
+ssize_t dhcp_opt_get(struct dhcp_msg *msg, enum dhcp_opt opt, uint8_t **opt_data_ptr);
 
 #endif

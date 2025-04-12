@@ -46,3 +46,24 @@ dhcp_opt_offset dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_offset offset) {
 
     return offset + 1;
 }
+
+ssize_t dhcp_opt_get(struct dhcp_msg *msg, enum dhcp_opt opt, uint8_t **opt_data_ptr) {
+    size_t opt_pos;
+
+    opt_pos = 0;
+
+    while(opt_pos < sizeof(msg->options) / sizeof(uint8_t)) {
+        if(msg->options[opt_pos] == dhcp_opt_break) {
+            break;
+        }
+
+        if(msg->options[opt_pos] == opt) {
+            *opt_data_ptr = &msg->options[opt_pos + 2];
+            return msg->options[opt_pos + 1];
+        }
+
+        opt_pos += msg->options[opt_pos + 1] + 2;
+    }
+
+    return -1;
+}
