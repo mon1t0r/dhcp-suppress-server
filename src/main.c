@@ -88,7 +88,8 @@ void dhcp_add_reply_options(struct dhcp_msg *msg, dhcp_opt_offset *offset) {
     dhcp_opt(msg, offset, dhcp_opt_dns, opt_data, 4);
 }
 
-size_t dhcp_reply_ack(struct dhcp_msg *msg, enum dhcp_msg_type msg_type_ack, uint8_t dhcp_ip[4]) {
+size_t dhcp_reply_ack(struct dhcp_msg *msg, enum dhcp_msg_type msg_type_ack,
+                      uint8_t dhcp_ip[4]) {
     uint8_t opt_data[1];
     dhcp_opt_offset offset;
 
@@ -98,11 +99,13 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, enum dhcp_msg_type msg_type_ack, uin
     msg->flags = htons(0x8000);
     msg->ciaddr = 0;
     if(msg_type_ack == dhcp_msg_type_ack) {
-        msg->yiaddr = ip_to_num(conf_ip_addr_1, conf_ip_addr_2, conf_ip_addr_3, conf_ip_addr_4);
+        msg->yiaddr = ip_to_num(conf_ip_addr_1, conf_ip_addr_2, conf_ip_addr_3,
+                                conf_ip_addr_4);
     } else {
         msg->yiaddr = 0;
     }
-    msg->siaddr = ip_to_num(spoof_dhcp_ip_1, spoof_dhcp_ip_2, spoof_dhcp_ip_3, spoof_dhcp_ip_4);
+    msg->siaddr = ip_to_num(spoof_dhcp_ip_1, spoof_dhcp_ip_2, spoof_dhcp_ip_3,
+                            spoof_dhcp_ip_4);
     msg->giaddr = 0;
 
     dhcp_opt_begin(msg, &offset);
@@ -130,8 +133,10 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg) {
     msg->secs = 0;
     msg->flags = htons(0x8000);
     msg->ciaddr = 0;
-    msg->yiaddr = ip_to_num(conf_ip_addr_1, conf_ip_addr_2, conf_ip_addr_3, conf_ip_addr_4);
-    msg->siaddr = ip_to_num(spoof_dhcp_ip_1, spoof_dhcp_ip_2, spoof_dhcp_ip_3, spoof_dhcp_ip_4);
+    msg->yiaddr = ip_to_num(conf_ip_addr_1, conf_ip_addr_2, conf_ip_addr_3,
+                            conf_ip_addr_4);
+    msg->siaddr = ip_to_num(spoof_dhcp_ip_1, spoof_dhcp_ip_2, spoof_dhcp_ip_3,
+                            spoof_dhcp_ip_4);
     msg->giaddr = 0;
 
     dhcp_opt_begin(msg, &offset);
@@ -206,7 +211,8 @@ void dhcp_handle_msg(int socket_fd, struct dhcp_msg *msg) {
     client_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
     client_addr.sin_port = htons(dhcp_client_port);
 
-    if(sendto(socket_fd, msg, reply_size, 0, (struct sockaddr *) &client_addr, sizeof(client_addr)) < 0) {
+    if(sendto(socket_fd, msg, reply_size, 0, (struct sockaddr *) &client_addr,
+              sizeof(client_addr)) < 0) {
         perror("sendto()");
         exit(EXIT_FAILURE);
     }
@@ -227,7 +233,8 @@ int main(void) {
     }
 
     sockopt = 1;
-    if(setsockopt(socket_fd, SOL_SOCKET, SO_BROADCAST, &sockopt, sizeof(sockopt)) < 0) {
+    if(setsockopt(socket_fd, SOL_SOCKET, SO_BROADCAST, &sockopt,
+                  sizeof(sockopt)) < 0) {
         perror("setsockopt()");
         exit(EXIT_FAILURE);
     }
@@ -238,14 +245,16 @@ int main(void) {
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_addr.sin_port = htons(dhcp_server_port);
 
-    if(bind(socket_fd, (const struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if(bind(socket_fd, (const struct sockaddr *) &serv_addr,
+            sizeof(serv_addr)) < 0) {
         perror("bind()");
         exit(EXIT_FAILURE);
     }
 
     client_addr_len = sizeof(client_addr);
 
-    while((msg_len = recvfrom(socket_fd, &msg, sizeof(msg), 0, (struct sockaddr *) &client_addr, &client_addr_len)) > 0) {
+    while((msg_len = recvfrom(socket_fd, &msg, sizeof(msg), 0, (struct sockaddr *)
+                              &client_addr, &client_addr_len)) > 0) {
         if(msg_len < sizeof(msg) - sizeof(msg.options)) {
             printf("Received incomplete message on DHCP port\n");
             continue;

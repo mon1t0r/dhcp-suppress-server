@@ -64,8 +64,10 @@ enum dhcp_msg_type {
 typedef ssize_t dhcp_opt_offset;
 
 void dhcp_opt_begin(struct dhcp_msg *msg, dhcp_opt_offset *offset);
-void dhcp_opt(struct dhcp_msg *msg, dhcp_opt_offset *offset, enum dhcp_opt opt, const void *opt_data, size_t opt_data_len);
+void dhcp_opt(struct dhcp_msg *msg, dhcp_opt_offset *offset, enum dhcp_opt opt,
+              const void *opt_data, size_t opt_data_len);
 void dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_offset *offset);
-ssize_t dhcp_opt_get(struct dhcp_msg *msg, enum dhcp_opt opt, uint8_t **opt_data_ptr);
+ssize_t dhcp_opt_get(struct dhcp_msg *msg, enum dhcp_opt opt,
+                     uint8_t **opt_data_ptr);
 
 #endif
