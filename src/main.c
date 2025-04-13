@@ -1,5 +1,3 @@
-#define _POSIX_C_SOURCE 199309L
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -8,72 +6,72 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <linux/if.h>
-#include <net/ethernet.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
+#include <linux/udp.h>
+#include <net/ethernet.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netpacket/packet.h>
-#include <arpa/inet.h>
-#include <linux/udp.h>
 
 #include "dhcp.h"
 
 #define INTERFACE_NAME "eno1"
 
 enum {
-    packet_buf_size  = 65536,
+    packet_buf_size       = 65536,
 
-    dhcp_server_port = 67,
-    dhcp_client_port = 68,
+    dhcp_server_port      = 67,
+    dhcp_client_port      = 68,
 
-    orig_dhcp_ip_1   = 192,
-    orig_dhcp_ip_2   = 168,
-    orig_dhcp_ip_3   = 1,
-    orig_dhcp_ip_4   = 1,
+    orig_dhcp_ip_1        = 192,
+    orig_dhcp_ip_2        = 168,
+    orig_dhcp_ip_3        = 1,
+    orig_dhcp_ip_4        = 1,
 
-    orig_dhcp_mac_1 = 0x74,
-    orig_dhcp_mac_2 = 0xFE,
-    orig_dhcp_mac_3 = 0xCE,
-    orig_dhcp_mac_4 = 0x8C,
-    orig_dhcp_mac_5 = 0x87,
-    orig_dhcp_mac_6 = 0x11,
+    orig_dhcp_mac_1       = 0x74,
+    orig_dhcp_mac_2       = 0xFE,
+    orig_dhcp_mac_3       = 0xCE,
+    orig_dhcp_mac_4       = 0x8C,
+    orig_dhcp_mac_5       = 0x87,
+    orig_dhcp_mac_6       = 0x11,
 
-    my_dhcp_ip_1  = 192,
-    my_dhcp_ip_2  = 168,
-    my_dhcp_ip_3  = 1,
-    my_dhcp_ip_4  = 211,
+    my_dhcp_ip_1          = 192,
+    my_dhcp_ip_2          = 168,
+    my_dhcp_ip_3          = 1,
+    my_dhcp_ip_4          = 211,
 
-    my_dhcp_mac_1 = 0xAA,
-    my_dhcp_mac_2 = 0xBB,
-    my_dhcp_mac_3 = 0xCC,
-    my_dhcp_mac_4 = 0xDD,
-    my_dhcp_mac_5 = 0xEE,
-    my_dhcp_mac_6 = 0xFF,
+    my_dhcp_mac_1         = 0xAA,
+    my_dhcp_mac_2         = 0xBB,
+    my_dhcp_mac_3         = 0xCC,
+    my_dhcp_mac_4         = 0xDD,
+    my_dhcp_mac_5         = 0xEE,
+    my_dhcp_mac_6         = 0xFF,
 
-    conf_ip_addr_1   = 1,
-    conf_ip_addr_2   = 2,
-    conf_ip_addr_3   = 3,
-    conf_ip_addr_4   = 4,
+    conf_ip_addr_1        = 1,
+    conf_ip_addr_2        = 2,
+    conf_ip_addr_3        = 3,
+    conf_ip_addr_4        = 4,
 
-    conf_subnet_mask_1 = 255,
-    conf_subnet_mask_2 = 255,
-    conf_subnet_mask_3 = 255,
-    conf_subnet_mask_4 = 0,
+    conf_subnet_mask_1    = 255,
+    conf_subnet_mask_2    = 255,
+    conf_subnet_mask_3    = 255,
+    conf_subnet_mask_4    = 0,
 
     conf_broadcast_addr_1 = 192,
     conf_broadcast_addr_2 = 168,
     conf_broadcast_addr_3 = 1,
     conf_broadcast_addr_4 = 255,
 
-    conf_router_ip_1 = 192,
-    conf_router_ip_2 = 168,
-    conf_router_ip_3 = 1,
-    conf_router_ip_4 = 200,
+    conf_router_ip_1      = 192,
+    conf_router_ip_2      = 168,
+    conf_router_ip_3      = 1,
+    conf_router_ip_4      = 200,
 
-    conf_dns_ip_1 = 192,
-    conf_dns_ip_2 = 168,
-    conf_dns_ip_3 = 1,
-    conf_dns_ip_4 = 200
+    conf_dns_ip_1         = 192,
+    conf_dns_ip_2         = 168,
+    conf_dns_ip_3         = 1,
+    conf_dns_ip_4         = 200
 };
 
 #define htonip(i1, i2, i3, i4) (i1 | (i2 << 8) | (i3 << 16) | (i4 << 24))
@@ -82,30 +80,6 @@ enum {
     ((uint64_t) m3 << 16) | ((uint64_t) m4 << 24) | \
     ((uint64_t) m5 << 32) | ((uint64_t) m6 << 40))
 
-uint16_t compute_ip_checksum(uint16_t* addr, size_t cnt) {
-    uint32_t sum;
-
-    sum = 0;
-
-    while(cnt > 1) {
-        sum += *addr;
-        addr++;
-        cnt -= 2;
-    }
-
-    if(cnt > 0) {
-        sum += (*addr) & htons(0xFF00);
-    }
-
-    while(sum >> 16) {
-        sum = (sum & 0xffff) + (sum >> 16);
-    }
-
-    sum = ~sum;
-
-    return (uint16_t) sum;
-}
- 
 void dhcp_add_reply_options(struct dhcp_msg *msg, dhcp_opt_offset *offset) {
     uint8_t opt_data[4];
 
@@ -259,6 +233,30 @@ ssize_t dhcp_handle_msg(struct dhcp_msg *msg, uint32_t *netw_addr,
     }
 
     return -1;
+}
+
+uint16_t compute_ip_checksum(uint16_t* addr, size_t cnt) {
+    uint32_t sum;
+
+    sum = 0;
+
+    while(cnt > 1) {
+        sum += *addr;
+        addr++;
+        cnt -= 2;
+    }
+
+    if(cnt > 0) {
+        sum += (*addr) & htons(0xFF00);
+    }
+
+    while(sum >> 16) {
+        sum = (sum & 0xffff) + (sum >> 16);
+    }
+
+    sum = ~sum;
+
+    return (uint16_t) sum;
 }
 
 ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, ssize_t msg_len, uint8_t *buf,
