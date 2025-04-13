@@ -76,12 +76,36 @@ enum {
     conf_dns_ip_4 = 200
 };
 
-#define ip_to_num(i1, i2, i3, i4) (i1 | (i2 << 8) | (i3 << 16) | (i4 << 24))
-#define mac_to_num(m1, m2, m3, m4, m5, m6) \
+#define htonip(i1, i2, i3, i4) (i1 | (i2 << 8) | (i3 << 16) | (i4 << 24))
+#define htonmac(m1, m2, m3, m4, m5, m6) \
     ((uint64_t) m1        | ((uint64_t) m2 << 8 ) | \
     ((uint64_t) m3 << 16) | ((uint64_t) m4 << 24) | \
     ((uint64_t) m5 << 32) | ((uint64_t) m6 << 40))
 
+uint16_t compute_ip_checksum(uint16_t* addr, size_t cnt) {
+    uint32_t sum;
+
+    sum = 0;
+
+    while(cnt > 1) {
+        sum += *addr;
+        addr++;
+        cnt -= 2;
+    }
+
+    if(cnt > 0) {
+        sum += (*addr) & htons(0xFF00);
+    }
+
+    while(sum >> 16) {
+        sum = (sum & 0xffff) + (sum >> 16);
+    }
+
+    sum = ~sum;
+
+    return (uint16_t) sum;
+}
+ 
 void dhcp_add_reply_options(struct dhcp_msg *msg, dhcp_opt_offset *offset) {
     uint8_t opt_data[4];
 
@@ -129,13 +153,13 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, enum dhcp_msg_type msg_type_ack,
     msg->flags = htons(0x8000);
     msg->ciaddr = 0;
     if(msg_type_ack == dhcp_msg_type_ack) {
-        msg->yiaddr = ip_to_num(conf_ip_addr_1, conf_ip_addr_2, conf_ip_addr_3,
-                                conf_ip_addr_4);
+        msg->yiaddr = htonip(conf_ip_addr_1, conf_ip_addr_2, conf_ip_addr_3,
+                             conf_ip_addr_4);
     } else {
         msg->yiaddr = 0;
     }
-    msg->siaddr = ip_to_num(my_dhcp_ip_1, my_dhcp_ip_2, my_dhcp_ip_3,
-                            my_dhcp_ip_4);
+    msg->siaddr = htonip(my_dhcp_ip_1, my_dhcp_ip_2, my_dhcp_ip_3,
+                         my_dhcp_ip_4);
     msg->giaddr = 0;
 
     dhcp_opt_begin(msg, &offset);
@@ -147,7 +171,9 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, enum dhcp_msg_type msg_type_ack,
         dhcp_opt(msg, &offset, dhcp_opt_srv_id, dhcp_ip, 4);
     }
 
-    dhcp_add_reply_options(msg, &offset);
+    if(msg_type_ack == dhcp_msg_type_ack) {
+        dhcp_add_reply_options(msg, &offset);
+    }
 
     dhcp_opt_end(msg, &offset);
 
@@ -163,9 +189,9 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg) {
     msg->secs = 0;
     msg->flags = htons(0x8000);
     msg->ciaddr = 0;
-    msg->yiaddr = ip_to_num(conf_ip_addr_1, conf_ip_addr_2, conf_ip_addr_3,
+    msg->yiaddr = htonip(conf_ip_addr_1, conf_ip_addr_2, conf_ip_addr_3,
                             conf_ip_addr_4);
-    msg->siaddr = ip_to_num(my_dhcp_ip_1, my_dhcp_ip_2, my_dhcp_ip_3,
+    msg->siaddr = htonip(my_dhcp_ip_1, my_dhcp_ip_2, my_dhcp_ip_3,
                             my_dhcp_ip_4);
     msg->giaddr = 0;
 
@@ -208,10 +234,12 @@ size_t dhcp_handle_request(struct dhcp_msg *msg, uint32_t *netw_addr,
         return dhcp_reply_ack(msg, dhcp_msg_type_ack, srv_ip);
     }
 
-    *netw_addr = ip_to_num(orig_dhcp_ip_1, orig_dhcp_ip_2, orig_dhcp_ip_3, orig_dhcp_ip_4);
-    *hw_addr = mac_to_num(orig_dhcp_mac_1, orig_dhcp_mac_2, orig_dhcp_mac_3,
-                          orig_dhcp_mac_4, orig_dhcp_mac_5, orig_dhcp_mac_6);
-    return dhcp_reply_ack(msg, dhcp_msg_type_nak, srv_ip);
+    *netw_addr = htonip(orig_dhcp_ip_1, orig_dhcp_ip_2, orig_dhcp_ip_3, orig_dhcp_ip_4);
+    *hw_addr = htonmac(orig_dhcp_mac_1, orig_dhcp_mac_2, orig_dhcp_mac_3,
+                       orig_dhcp_mac_4, orig_dhcp_mac_5, orig_dhcp_mac_6);
+
+    return dhcp_reply_ack(msg, dhcp_msg_type_nak,
+                          opt_data_ptr != NULL ? srv_ip : NULL);
 }
 
 ssize_t dhcp_handle_msg(struct dhcp_msg *msg, uint32_t *netw_addr,
@@ -240,6 +268,14 @@ ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, ssize_t msg_len, uint8_t *buf,
     struct iphdr *ip_hdr;
     struct udphdr *udp_hdr;
 
+    if(netw_addr == 0) {
+        netw_addr = htonip(my_dhcp_ip_1, my_dhcp_ip_2, my_dhcp_ip_3, my_dhcp_ip_4);
+    }
+    if(hw_addr == 0) {
+        hw_addr = htonmac(my_dhcp_mac_1, my_dhcp_mac_2, my_dhcp_mac_3,
+                          my_dhcp_mac_4, my_dhcp_mac_5, my_dhcp_mac_6);
+    }
+
     memset(buf, 0, packet_buf_size * sizeof(uint8_t));
 
     offset = 0;
@@ -262,9 +298,11 @@ ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, ssize_t msg_len, uint8_t *buf,
     ip_hdr->id = 0;
     ip_hdr->ttl = 64;
     ip_hdr->protocol = 17;
-    ip_hdr->saddr = htonl(netw_addr);
+    ip_hdr->saddr = netw_addr;
     ip_hdr->daddr = htonl(INADDR_BROADCAST);
     ip_hdr->tot_len = htons(msg_len + sizeof(struct udphdr) + sizeof(struct iphdr));
+    ip_hdr->check = 0;
+    ip_hdr->check = compute_ip_checksum((uint16_t *) ip_hdr, ip_hdr->ihl << 2);
     offset += sizeof(struct iphdr);
 
     udp_hdr = (struct udphdr *) (buf + offset);
@@ -278,8 +316,6 @@ ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, ssize_t msg_len, uint8_t *buf,
 
     offset += msg_len;
 
-    /* TODO: Calculate ip checksum */
-
     return offset;
 }
 
@@ -288,6 +324,7 @@ bool dhcp_unpack_msg(struct dhcp_msg *msg, const uint8_t *buf, ssize_t buf_len) 
     struct ethhdr *eth_hdr;
     struct iphdr *ip_hdr;
     struct udphdr *udp_hdr;
+    ssize_t msg_len;
 
     offset = 0;
 
@@ -312,8 +349,8 @@ bool dhcp_unpack_msg(struct dhcp_msg *msg, const uint8_t *buf, ssize_t buf_len) 
     offset += sizeof(struct ethhdr);
 
     ip_hdr = (struct iphdr *) (buf + offset);
-    if((ntohl(ip_hdr->daddr) != INADDR_BROADCAST && ntohl(ip_hdr->daddr) !=
-        ip_to_num(my_dhcp_ip_1, my_dhcp_ip_2, my_dhcp_ip_3, my_dhcp_ip_4)) || 
+    if((ip_hdr->daddr != htonl(INADDR_BROADCAST) && ip_hdr->daddr !=
+        htonip(my_dhcp_ip_1, my_dhcp_ip_2, my_dhcp_ip_3, my_dhcp_ip_4)) || 
         ip_hdr->protocol != 17) {
         return false;
     }
@@ -326,19 +363,23 @@ bool dhcp_unpack_msg(struct dhcp_msg *msg, const uint8_t *buf, ssize_t buf_len) 
     }
     offset += sizeof(struct udphdr);
 
-    if(buf_len - offset < sizeof(struct dhcp_msg) - sizeof(msg->options)) {
+    msg_len = buf_len - offset;
+    if(msg_len < sizeof(struct dhcp_msg) - sizeof(msg->options)) {
         return false;
     }
 
+    if(msg_len > sizeof(struct dhcp_msg)) {
+        msg_len = sizeof(struct dhcp_msg);
+    }
+
     memset(&msg->options, 0, sizeof(msg->options));
-    memcpy(&msg, buf + offset, buf_len - offset);
+    memcpy(msg, buf + offset, msg_len);
 
     return true;
 }
 
 int create_socket(int *if_index) {
     int socket_fd;
-    /*int sockopt;*/
     struct ifreq ifreq;
     struct sockaddr_ll addr;
 
@@ -349,14 +390,6 @@ int create_socket(int *if_index) {
         perror("socket()");
         exit(EXIT_FAILURE);
     }
-
-    /* Enable socket output broadcast */
-    /*sockopt = 1;
-    if(setsockopt(socket_fd, SOL_SOCKET, SO_BROADCAST, &sockopt,
-                  sizeof(sockopt)) < 0) {
-        perror("setsockopt()");
-        exit(EXIT_FAILURE);
-    }*/
 
     /* Get interface index */
     memset(&ifreq, 0, sizeof(struct ifreq));
@@ -419,20 +452,12 @@ int main(void) {
 
     socket_fd = create_socket(&if_index);
 
+    netw_addr = 0;
+    hw_addr = 0;
+
     buf = malloc(packet_buf_size * sizeof(uint8_t));
 
-    while((buf_len = recv(socket_fd, &buf, packet_buf_size * sizeof(uint8_t), 0) > 0)) {
-
-        /*printf("DHCP message from %s\n", inet_ntoa(client_addr.sin_addr));
-        printf("|-opcode: %d\n", msg.opcode);
-        printf("|-xid: %x\n", ntohl(msg.xid));
-        if(msg.hlen == 6) {
-            printf("|-chaddr: %x:%x:%x:%x:%x:%x\n", msg.chaddr[0], msg.chaddr[1], msg.chaddr[2], msg.chaddr[3], msg.chaddr[4], msg.chaddr[5]);
-        }
-        printf("|-sname: %s\n", msg.sname);
-        printf("|-filename: %s\n", msg.filename);
-        printf("\n");*/
-
+    while((buf_len = recv(socket_fd, buf, packet_buf_size * sizeof(uint8_t), 0) > 0)) {
         if(!dhcp_unpack_msg(&msg, buf, buf_len)) {
             continue;
         }
@@ -445,6 +470,7 @@ int main(void) {
             continue;
         }
 
+        memset(&addr, 0, sizeof(addr));
         addr.sll_ifindex = if_index;
         addr.sll_halen = ETH_ALEN;
         memset(&addr.sll_addr, 255, 6);
