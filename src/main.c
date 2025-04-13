@@ -294,7 +294,7 @@ ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, ssize_t msg_len, uint8_t *buf,
     ip_hdr = (struct iphdr *) (buf + offset);
     ip_hdr->ihl = 5;
     ip_hdr->version = 4;
-    ip_hdr->tos = 0;
+    ip_hdr->tos = 192;
     ip_hdr->id = 0;
     ip_hdr->ttl = 64;
     ip_hdr->protocol = 17;
