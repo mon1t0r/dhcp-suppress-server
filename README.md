@@ -24,8 +24,8 @@ cppcheck
 ### Build
 ```
 git clone https://github.com/mon1t0r/dhcp-suppress-server
+cd dhcp-suppress-server
 make
-./dhcp_server
 ```
 
 ### Run
