@@ -32,3 +32,8 @@ make
 ```
 sudo ./dhcp_server
 ```
+
+## TODO
+ - implement work in networks with more than one DHCP server:
+   send DHCPNAK with dynamic IP and MAC address of the other server;
+ - configuration from command line arguments/config file.
