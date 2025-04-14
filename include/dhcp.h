@@ -12,6 +12,32 @@ enum {
     dhcp_options_len  = 312
 };
 
+/* Hardware address data type */
+/* Type size can be greater, than is needed to store hardware address */
+typedef uint64_t hw_addr_t;
+/* Network address data type */
+typedef uint32_t net_addr_t;
+/* DHCP options filling offset */
+typedef ssize_t dhcp_opt_offset;
+
+/* Macro for converting octets of network address to net_addr_t in host byte order */
+/* Octets to number */
+#define otonnet(i1, i2, i3, i4) \
+    ((net_addr_t) i4        | (net_addr_t) (i3 << 8 ) | \
+    ((net_addr_t) i2 << 16) | (net_addr_t) (i1 << 24))
+
+/* Macro for converting octets of hardware address to hw_addr_t in host byte order */
+/* Octets to number */
+#define otonmac(m1, m2, m3, m4, m5, m6) \
+    ((hw_addr_t) m6        | ((hw_addr_t) m5 << 8 ) | \
+    ((hw_addr_t) m4 << 16) | ((hw_addr_t) m3 << 24) | \
+    ((hw_addr_t) m2 << 32) | ((hw_addr_t) m1 << 40))
+
+/* Macro for getting octet value from address in network byte order */
+/* Number to octets */
+#define ntoo(addr, octet) \
+    ((addr >> 8 * octet) & 0xFF)
+
 struct dhcp_msg {
     uint8_t opcode;
     uint8_t htype;
@@ -20,10 +46,10 @@ struct dhcp_msg {
     uint32_t xid;
     uint16_t secs;
     uint16_t flags;
-    uint32_t ciaddr;
-    uint32_t yiaddr;
-    uint32_t siaddr;
-    uint32_t giaddr;
+    net_addr_t ciaddr;
+    net_addr_t yiaddr;
+    net_addr_t siaddr;
+    net_addr_t giaddr;
     uint8_t chaddr[dhcp_chaddr_len];
     char sname[dhcp_sname_len];
     char filename[dhcp_filename_len];
@@ -61,12 +87,13 @@ enum dhcp_msg_type {
     dhcp_msg_type_inform
 };
 
-typedef ssize_t dhcp_opt_offset;
-
 void dhcp_opt_begin(struct dhcp_msg *msg, dhcp_opt_offset *offset);
+
 void dhcp_opt(struct dhcp_msg *msg, dhcp_opt_offset *offset, enum dhcp_opt opt,
               const void *opt_data, size_t opt_data_len);
+
 void dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_offset *offset);
+
 ssize_t dhcp_opt_get(struct dhcp_msg *msg, enum dhcp_opt opt,
                      uint8_t **opt_data_ptr);
 
