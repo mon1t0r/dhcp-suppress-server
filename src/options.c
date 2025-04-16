@@ -3,27 +3,25 @@
 #include <stdbool.h>
 #include <string.h>
 #include <getopt.h>
+#include <arpa/inet.h>
 
 #include "options.h"
 
-static const char error_msg[] = "Usage: %s [OPTION]... \n(%s)\n";
+static const char error_msg[] =
+    "Usage: %s ORIG_IP ORIG_MAC MY_IP MY_MAC [OPTION]...\n(%s)\n";
 
 static const struct option longopts[] = {
     { "srvport",   required_argument, NULL, 'S' },
     { "clport",    required_argument, NULL, 'C' },
-    { "odhcpip",   required_argument, NULL, 'I' },
-    { "odhcpmac",  required_argument, NULL, 'M' },
-    { "mdhcpip",   required_argument, NULL, 'i' },
-    { "mdhcpmac",  required_argument, NULL, 'm' },
-    { "confclip",  required_argument, NULL, 'a' },
-    { "confmask",  required_argument, NULL, 'n' },
+    { "confclip",  required_argument, NULL, 'i' },
+    { "confmask",  required_argument, NULL, 'm' },
     { "confroip",  required_argument, NULL, 'r' },
     { "confbrip",  required_argument, NULL, 'b' },
     { "confdnsip", required_argument, NULL, 'd' },
     { 0,           0,                 0,    0   }
 };
 
-static const char optstring[] = "S:C:I:M:i:m:a:n:r:b:d:";
+static const char optstring[] = "S:C:i:m:r:b:d:";
 
 void options_error(const char *exec_name, const char *reason) {
     fprintf(stderr, error_msg, exec_name, reason);
@@ -31,15 +29,44 @@ void options_error(const char *exec_name, const char *reason) {
 }
 
 bool options_parse_port(const char *arg, uint16_t *port) {
-    return false;
+    return sscanf(arg, "%hu", port) == 1;
 }
 
 bool options_parse_net_addr(const char *arg, net_addr_t *addr) {
-    return false;
+    if(inet_pton(AF_INET, arg, addr) != 1) {
+        return false;
+    }
+
+    *addr = ntohl(*addr);
+
+    return true;
+
 }
 
 bool options_parse_hw_addr(const char *arg, hw_addr_t *addr) {
-    return false;
+    uint8_t addr_bytes[6];
+    if(sscanf(arg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &addr_bytes[0],
+              &addr_bytes[1], &addr_bytes[2], &addr_bytes[3], &addr_bytes[4],
+              &addr_bytes[5]) != 6) {
+        return false;
+    }
+
+    *addr = otonmac(addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3],
+                    addr_bytes[4], addr_bytes[5]);
+
+    return true;
+}
+
+void options_set_default(struct dhcp_server_options *options) {
+    memset(options, 0, sizeof(*options));
+
+    options->dhcp_server_port = 67;
+    options->dhcp_client_port = 68;
+    options->conf_client_ip = otonnet(1, 2, 3, 4);
+    options->conf_network_mask = otonnet(255, 255, 255, 0);
+    options->conf_router_ip = otonnet(4, 3, 2, 1);
+    options->conf_broadcast_ip = otonnet(1, 2, 3, 255);
+    options->conf_dns_ip = otonnet(4, 3, 2, 1);
 }
 
 struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
@@ -50,7 +77,7 @@ struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
 
     char c;
 
-    memset(&options, 0, sizeof(options));
+    options_set_default(&options);
 
     if(argc <= 0) {
         options_error("dhcp_server", "argc <= 0");
@@ -70,32 +97,12 @@ struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
                     options_error(argv[0], "clport - invalid value");
                 }
                 break;
-            case 'I':
-                if(!options_parse_net_addr(optarg, &options.orig_dhcp_ip)) {
-                    options_error(argv[0], "odhcpip - invalid value");
-                }
-                break;
-            case 'M':
-                if(!options_parse_hw_addr(optarg, &options.orig_dhcp_mac)) {
-                    options_error(argv[0], "odhcpmac - invalid value");
-                }
-                break;
             case 'i':
-                if(!options_parse_net_addr(optarg, &options.my_dhcp_ip)) {
-                    options_error(argv[0], "mdhcpip - invalid value");
-                }
-                break;
-            case 'm':
-                if(!options_parse_hw_addr(optarg, &options.my_dhcp_mac)) {
-                    options_error(argv[0], "mdhcpmac - invalid value");
-                }
-                break;
-            case 'a':
                 if(!options_parse_net_addr(optarg, &options.conf_client_ip)) {
                     options_error(argv[0], "confclip - invalid value");
                 }
                 break;
-            case 'n':
+            case 'm':
                 if(!options_parse_net_addr(optarg, &options.conf_network_mask)) {
                     options_error(argv[0], "confmask - invalid value");
                 }
@@ -116,9 +123,29 @@ struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
                 }
                 break;
             default:
-                options_error(argv[0], "unknown option");
+                options_error(argv[0], "");
         }
     } while(c != -1);
+
+    if(optind + 4 != argc) {
+        options_error(argv[0], "missing required parameters");
+    }
+
+    if(!options_parse_net_addr(argv[optind], &options.orig_ip)) {
+        options_error(argv[0], "ORIG_IP - invalid value");
+    }
+
+    if(!options_parse_hw_addr(argv[optind + 1], &options.orig_mac)) {
+        options_error(argv[0], "ORIG_MAC - invalid value");
+    }
+
+    if(!options_parse_net_addr(argv[optind + 2], &options.my_ip)) {
+        options_error(argv[0], "MY_IP - invalid value");
+    }
+
+    if(!options_parse_hw_addr(argv[optind + 3], &options.my_mac)) {
+        options_error(argv[0], "MY_MAC - invalid value");
+    }
 
     return options;
 }

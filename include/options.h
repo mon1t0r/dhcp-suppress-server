@@ -8,10 +8,10 @@
 struct dhcp_server_options {
     uint16_t dhcp_server_port;
     uint16_t dhcp_client_port;
-    net_addr_t orig_dhcp_ip;
-    hw_addr_t orig_dhcp_mac;
-    net_addr_t my_dhcp_ip;
-    hw_addr_t my_dhcp_mac;
+    net_addr_t orig_ip;
+    hw_addr_t orig_mac;
+    net_addr_t my_ip;
+    hw_addr_t my_mac;
     net_addr_t conf_client_ip;
     net_addr_t conf_network_mask;
     net_addr_t conf_router_ip;
