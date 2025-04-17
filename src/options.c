@@ -8,7 +8,7 @@
 #include "options.h"
 
 static const char error_msg[] =
-    "Usage: %s ORIG_IP ORIG_MAC MY_IP MY_MAC [OPTION]...\n(%s)\n";
+    "Usage: %s [OPTION]... ORIG_IP ORIG_MAC MY_IP MY_MAC \n(%s)\n";
 
 static const struct option longopts[] = {
     { "srvport",   required_argument, NULL, 'S' },
@@ -64,9 +64,9 @@ void options_set_default(struct dhcp_server_options *options) {
     options->dhcp_client_port = 68;
     options->conf_client_ip = otonnet(1, 2, 3, 4);
     options->conf_network_mask = otonnet(255, 255, 255, 0);
-    options->conf_router_ip = otonnet(4, 3, 2, 1);
+    options->conf_router_ip = otonnet(1, 2, 3, 1);
     options->conf_broadcast_ip = otonnet(1, 2, 3, 255);
-    options->conf_dns_ip = otonnet(4, 3, 2, 1);
+    options->conf_dns_ip = otonnet(1, 2, 3, 1);
 }
 
 struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
@@ -74,7 +74,6 @@ struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
     extern char *optarg;
 
     struct dhcp_server_options options;
-
     char c;
 
     options_set_default(&options);
@@ -87,6 +86,8 @@ struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
         c = getopt_long(argc, argv, optstring, longopts, NULL);
 
         switch(c) {
+            case -1:
+                break;
             case 'S':
                 if(!options_parse_port(optarg, &options.dhcp_server_port)) {
                     options_error(argv[0], "srvport - invalid value");
@@ -148,5 +149,38 @@ struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
     }
 
     return options;
+}
+
+void options_print(const struct dhcp_server_options *options) {
+    struct in_addr addr;
+
+    printf("Options\n");
+    printf("|-server port %d\n", options->dhcp_server_port);
+    printf("|-client port %d\n", options->dhcp_client_port);
+
+    addr.s_addr = htonl(options->orig_ip);
+    printf("|-orig IPv4 %s\n", inet_ntoa(addr));
+    printf("|-orig MAC %hhx:%hhx:%hhx:%hhx:%hhx:%hhx\n",
+           ntoo(options->orig_mac, 5), ntoo(options->orig_mac, 4),
+           ntoo(options->orig_mac, 3), ntoo(options->orig_mac, 2),
+           ntoo(options->orig_mac, 1), ntoo(options->orig_mac, 0));
+
+    addr.s_addr = htonl(options->my_ip);
+    printf("|-my IPv4: %s\n", inet_ntoa(addr));
+    printf("|-my MAC %hhx:%hhx:%hhx:%hhx:%hhx:%hhx\n",
+           ntoo(options->my_mac, 5), ntoo(options->my_mac, 4),
+           ntoo(options->my_mac, 3), ntoo(options->my_mac, 2),
+           ntoo(options->my_mac, 1), ntoo(options->my_mac, 0));
+
+    addr.s_addr = htonl(options->conf_client_ip);
+    printf("|-config client IPv4 %s\n", inet_ntoa(addr));
+    addr.s_addr = htonl(options->conf_network_mask);
+    printf("|-config network mask %s\n", inet_ntoa(addr));
+    addr.s_addr = htonl(options->conf_router_ip);
+    printf("|-config router IPV4 %s\n", inet_ntoa(addr));
+    addr.s_addr = htonl(options->conf_broadcast_ip);
+    printf("|-config broadcast IPV4 %s\n", inet_ntoa(addr));
+    addr.s_addr = htonl(options->conf_dns_ip);
+    printf("|-config dns IPV4 %s\n", inet_ntoa(addr));
 }
 

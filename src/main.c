@@ -336,12 +336,13 @@ int create_socket(int *if_index) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Interface\n");
-    printf("|-name %s\n", INTERFACE_NAME);
+    printf("Binded interface\n");
+    printf("|-name  %s\n", INTERFACE_NAME);
     printf("|-index %d\n", *if_index);
-    printf("|-mac %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1], addr_link[2],
-           addr_link[3], addr_link[4], addr_link[5]);
-    printf("|-ip %s\n", inet_ntoa(((struct sockaddr_in *) &ifreq.ifr_addr)->sin_addr));
+    printf("|-IPv4  %s\n", inet_ntoa(((struct sockaddr_in *)
+                                     &ifreq.ifr_addr)->sin_addr));
+    printf("|-MAC   %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1],
+           addr_link[2], addr_link[3], addr_link[4], addr_link[5]);
     printf("Socket initialized successfully\n\n");
 
     return socket_fd;
@@ -364,6 +365,9 @@ int main(int argc, char *argv[]) {
     ssize_t msg_len;
 
     options = options_dhcp_parse(argc, argv);
+
+    options_print(&options);
+    printf("\n");
 
     socket_fd = create_socket(&if_index);
 

@@ -21,4 +21,6 @@ struct dhcp_server_options {
 
 struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]);
 
+void options_print(const struct dhcp_server_options *options);
+
 #endif
