@@ -2,7 +2,7 @@
 
 #include "dhcp.h"
 
-void dhcp_opt_begin(struct dhcp_msg *msg, dhcp_opt_offset *offset) {
+void dhcp_opt_begin(struct dhcp_msg *msg, dhcp_opt_off_t *offset) {
     if(msg == NULL) {
         *offset = -1;
         return;
@@ -13,7 +13,7 @@ void dhcp_opt_begin(struct dhcp_msg *msg, dhcp_opt_offset *offset) {
     *offset = 0;
 }
 
-void dhcp_opt(struct dhcp_msg *msg, dhcp_opt_offset *offset, enum dhcp_opt opt,
+void dhcp_opt(struct dhcp_msg *msg, dhcp_opt_off_t *offset, enum dhcp_opt opt,
               const void *opt_data, size_t opt_data_len) {
     uint8_t *opts_ptr;
 
@@ -35,7 +35,7 @@ void dhcp_opt(struct dhcp_msg *msg, dhcp_opt_offset *offset, enum dhcp_opt opt,
     *offset += opt_data_len + 2;
 }
 
-void dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_offset *offset) {
+void dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_off_t *offset) {
     if(*offset < 0) {
         return;
     }

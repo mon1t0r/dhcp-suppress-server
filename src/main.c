@@ -24,7 +24,7 @@ enum {
 };
 
 void dhcp_add_reply_options(struct dhcp_msg *msg, const struct dhcp_server_options *options,
-                            dhcp_opt_offset *offset) {
+                            dhcp_opt_off_t *offset) {
     uint32_t opt_data;
 
     opt_data = htonl(0xFFFFFF);
@@ -48,7 +48,7 @@ void dhcp_add_reply_options(struct dhcp_msg *msg, const struct dhcp_server_optio
 size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct dhcp_server_options *options,
                       enum dhcp_msg_type msg_type_ack, net_addr_t srv_ip) {
     uint32_t opt_data;
-    dhcp_opt_offset offset;
+    dhcp_opt_off_t offset;
 
     msg->opcode = dhcp_opcode_reply;
     msg->hops = 0;
@@ -84,7 +84,7 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct dhcp_server_options *op
 
 size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct dhcp_server_options *options) {
     uint32_t opt_data;
-    dhcp_opt_offset offset;
+    dhcp_opt_off_t offset;
 
     msg->opcode = dhcp_opcode_reply;
     msg->hops = 0;
