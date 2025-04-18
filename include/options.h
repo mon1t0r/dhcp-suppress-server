@@ -8,15 +8,18 @@
 struct dhcp_server_options {
     uint16_t dhcp_server_port;
     uint16_t dhcp_client_port;
-    net_addr_t orig_ip;
-    hw_addr_t orig_mac;
-    net_addr_t my_ip;
-    hw_addr_t my_mac;
-    net_addr_t conf_client_ip;
+    net_addr_t orig_net_addr;
+    hw_addr_t orig_hw_addr;
+    net_addr_t my_net_addr;
+    hw_addr_t my_hw_addr;
+    net_addr_t conf_client_addr;
     net_addr_t conf_network_mask;
-    net_addr_t conf_router_ip;
-    net_addr_t conf_broadcast_ip;
-    net_addr_t conf_dns_ip;
+    net_addr_t conf_router_addr;
+    net_addr_t conf_broadcast_addr;
+    net_addr_t conf_dns_addr;
+    uint32_t conf_time_address;
+    uint32_t conf_time_renewal;
+    uint32_t conf_time_rebinding;
 };
 
 struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]);

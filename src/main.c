@@ -27,21 +27,25 @@ void dhcp_add_reply_options(struct dhcp_msg *msg, const struct dhcp_server_optio
                             dhcp_opt_off_t *offset) {
     uint32_t opt_data;
 
-    opt_data = htonl(0xFFFFFF);
+    opt_data = htonl(options->conf_time_address);
     dhcp_opt(msg, offset, dhcp_opt_address_time, &opt_data, 4);
+
+    opt_data = htonl(options->conf_time_renewal);
     dhcp_opt(msg, offset, dhcp_opt_renewal_time, &opt_data, 4);
+
+    opt_data = htonl(options->conf_time_rebinding);
     dhcp_opt(msg, offset, dhcp_opt_rebinding_time, &opt_data, 4);
 
     opt_data = htonl(options->conf_network_mask);
     dhcp_opt(msg, offset, dhcp_opt_subnet_mask, &opt_data, 4);
 
-    opt_data = htonl(options->conf_broadcast_ip);
+    opt_data = htonl(options->conf_broadcast_addr);
     dhcp_opt(msg, offset, dhcp_opt_broadcast_address, &opt_data, 4);
 
-    opt_data = htonl(options->conf_router_ip);
+    opt_data = htonl(options->conf_router_addr);
     dhcp_opt(msg, offset, dhcp_opt_router, &opt_data, 4);
 
-    opt_data = htonl(options->conf_dns_ip);
+    opt_data = htonl(options->conf_dns_addr);
     dhcp_opt(msg, offset, dhcp_opt_dns, &opt_data, 4);
 }
 
@@ -56,11 +60,11 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct dhcp_server_options *op
     msg->flags = htons(0x8000);
     msg->ciaddr = 0;
     if(msg_type_ack == dhcp_msg_type_ack) {
-        msg->yiaddr = htonl(options->conf_client_ip);
+        msg->yiaddr = htonl(options->conf_client_addr);
     } else {
         msg->yiaddr = 0;
     }
-    msg->siaddr = htonl(options->my_ip);
+    msg->siaddr = htonl(options->my_net_addr);
     msg->giaddr = 0;
 
     dhcp_opt_begin(msg, &offset);
@@ -91,8 +95,8 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct dhcp_server_options *
     msg->secs = 0;
     msg->flags = htons(0x8000);
     msg->ciaddr = 0;
-    msg->yiaddr = htonl(options->conf_client_ip);
-    msg->siaddr = htonl(options->my_ip);
+    msg->yiaddr = htonl(options->conf_client_addr);
+    msg->siaddr = htonl(options->my_net_addr);
     msg->giaddr = 0;
 
     dhcp_opt_begin(msg, &offset);
@@ -100,7 +104,7 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct dhcp_server_options *
     opt_data = dhcp_msg_type_offer;
     dhcp_opt(msg, &offset, dhcp_opt_msg_type, &opt_data, 1);
 
-    opt_data = htonl(options->my_ip);
+    opt_data = htonl(options->my_net_addr);
     dhcp_opt(msg, &offset, dhcp_opt_srv_id, &opt_data, 4);
 
     dhcp_add_reply_options(msg, options, &offset);
@@ -123,12 +127,12 @@ size_t dhcp_handle_request(struct dhcp_msg *msg, const struct dhcp_server_option
         srv_ip = 0;
     }
 
-    if(opt_data_ptr != NULL && srv_ip == options->my_ip) {
+    if(opt_data_ptr != NULL && srv_ip == options->my_net_addr) {
         return dhcp_reply_ack(msg, options, dhcp_msg_type_ack, srv_ip);
     }
 
-    *netw_addr = options->orig_ip;
-    *hw_addr = options->orig_mac;
+    *netw_addr = options->orig_net_addr;
+    *hw_addr = options->orig_hw_addr;
 
     return dhcp_reply_ack(msg, options, dhcp_msg_type_nak, srv_ip);
 }
@@ -184,10 +188,10 @@ ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, const struct dhcp_server_optio
     struct udphdr *udp_hdr;
 
     if(netw_addr == 0) {
-        netw_addr = options->my_ip;
+        netw_addr = options->my_net_addr;
     }
     if(hw_addr == 0) {
-        hw_addr = options->my_mac;
+        hw_addr = options->my_hw_addr;
     }
 
     memset(buf, 0, packet_buf_size * sizeof(uint8_t));
@@ -252,12 +256,12 @@ bool dhcp_unpack_msg(struct dhcp_msg *msg, const struct dhcp_server_options *opt
         eth_hdr->h_dest[4] != 255 ||
         eth_hdr->h_dest[5] != 255
     ) && (
-        eth_hdr->h_dest[0] != ntoo(options->my_mac, 0) ||
-        eth_hdr->h_dest[1] != ntoo(options->my_mac, 1) ||
-        eth_hdr->h_dest[2] != ntoo(options->my_mac, 2) ||
-        eth_hdr->h_dest[3] != ntoo(options->my_mac, 3) ||
-        eth_hdr->h_dest[4] != ntoo(options->my_mac, 4) ||
-        eth_hdr->h_dest[5] != ntoo(options->my_mac, 5) 
+        eth_hdr->h_dest[0] != ntoo(options->my_hw_addr, 0) ||
+        eth_hdr->h_dest[1] != ntoo(options->my_hw_addr, 1) ||
+        eth_hdr->h_dest[2] != ntoo(options->my_hw_addr, 2) ||
+        eth_hdr->h_dest[3] != ntoo(options->my_hw_addr, 3) ||
+        eth_hdr->h_dest[4] != ntoo(options->my_hw_addr, 4) ||
+        eth_hdr->h_dest[5] != ntoo(options->my_hw_addr, 5) 
     )) || ntohs(eth_hdr->h_proto) != ETH_P_IP) {
         return false;
     }
@@ -265,7 +269,7 @@ bool dhcp_unpack_msg(struct dhcp_msg *msg, const struct dhcp_server_options *opt
 
     ip_hdr = (struct iphdr *) (buf + offset);
     if((ip_hdr->daddr != htonl(INADDR_BROADCAST) &&
-        ip_hdr->daddr != htonl(options->my_ip)) || 
+        ip_hdr->daddr != htonl(options->my_net_addr)) || 
         ip_hdr->protocol != 17) {
         return false;
     }
@@ -341,9 +345,9 @@ int create_socket(int *if_index) {
     }
 
     printf("Binded interface\n");
-    printf("|-name  %s\n", INTERFACE_NAME);
-    printf("|-index %d\n", *if_index);
-    printf("|-IPv4  %s\n", inet_ntoa(((struct sockaddr_in *)
+    printf("|-name   %s\n", INTERFACE_NAME);
+    printf("|-index  %d\n", *if_index);
+    printf("|-IPv4   %s\n", inet_ntoa(((struct sockaddr_in *)
                                      &ifreq.ifr_addr)->sin_addr));
     printf("|-MAC   %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1],
            addr_link[2], addr_link[3], addr_link[4], addr_link[5]);
