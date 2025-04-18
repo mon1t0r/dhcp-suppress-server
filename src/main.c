@@ -349,7 +349,7 @@ int create_socket(int *if_index) {
     printf("|-index  %d\n", *if_index);
     printf("|-IPv4   %s\n", inet_ntoa(((struct sockaddr_in *)
                                      &ifreq.ifr_addr)->sin_addr));
-    printf("|-MAC   %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1],
+    printf("|-MAC    %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1],
            addr_link[2], addr_link[3], addr_link[4], addr_link[5]);
     printf("Socket initialized successfully\n\n");
 
