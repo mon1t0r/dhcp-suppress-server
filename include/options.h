@@ -2,10 +2,12 @@
 #define DHCP_SUP_SERVER_OPTIONS_H
 
 #include <stdint.h>
+#include <linux/if.h>
 
 #include "dhcp.h"
 
-struct dhcp_server_options {
+struct srv_opts {
+    char interface_name[IFNAMSIZ];
     uint16_t dhcp_server_port;
     uint16_t dhcp_client_port;
     net_addr_t orig_net_addr;
@@ -22,8 +24,8 @@ struct dhcp_server_options {
     uint32_t conf_time_rebinding;
 };
 
-struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]);
+struct srv_opts options_parse(int argc, char *argv[]);
 
-void options_print(const struct dhcp_server_options *options);
+void options_print(const struct srv_opts *options);
 
 #endif

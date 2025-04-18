@@ -17,13 +17,11 @@
 #include "options.h"
 #include "dhcp.h"
 
-#define INTERFACE_NAME "eno1"
-
 enum {
     packet_buf_size = 65536
 };
 
-void dhcp_add_reply_options(struct dhcp_msg *msg, const struct dhcp_server_options *options,
+void dhcp_add_reply_options(struct dhcp_msg *msg, const struct srv_opts *options,
                             dhcp_opt_off_t *offset) {
     uint32_t opt_data;
 
@@ -49,7 +47,7 @@ void dhcp_add_reply_options(struct dhcp_msg *msg, const struct dhcp_server_optio
     dhcp_opt(msg, offset, dhcp_opt_dns, &opt_data, 4);
 }
 
-size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct dhcp_server_options *options,
+size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct srv_opts *options,
                       enum dhcp_msg_type msg_type_ack, net_addr_t srv_ip) {
     uint32_t opt_data;
     dhcp_opt_off_t offset;
@@ -86,7 +84,7 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct dhcp_server_options *op
     return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(uint8_t);
 }
 
-size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct dhcp_server_options *options) {
+size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct srv_opts *options) {
     uint32_t opt_data;
     dhcp_opt_off_t offset;
 
@@ -114,7 +112,7 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct dhcp_server_options *
     return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(uint8_t);
 }
 
-size_t dhcp_handle_request(struct dhcp_msg *msg, const struct dhcp_server_options *options,
+size_t dhcp_handle_request(struct dhcp_msg *msg, const struct srv_opts *options,
                            net_addr_t *netw_addr, hw_addr_t *hw_addr) {
     uint8_t *opt_data_ptr;
     net_addr_t srv_ip;
@@ -137,7 +135,7 @@ size_t dhcp_handle_request(struct dhcp_msg *msg, const struct dhcp_server_option
     return dhcp_reply_ack(msg, options, dhcp_msg_type_nak, srv_ip);
 }
 
-ssize_t dhcp_handle_msg(struct dhcp_msg *msg, const struct dhcp_server_options *options,
+ssize_t dhcp_handle_msg(struct dhcp_msg *msg, const struct srv_opts *options,
                         net_addr_t *netw_addr, hw_addr_t *hw_addr) {
     uint8_t *opt_data_ptr;
 
@@ -180,7 +178,7 @@ uint16_t compute_ip_checksum(uint16_t* ptr, size_t cnt) {
     return (uint16_t) sum;
 }
 
-ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, const struct dhcp_server_options *options,
+ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, const struct srv_opts *options,
                       ssize_t msg_len, uint8_t *buf, net_addr_t netw_addr, hw_addr_t hw_addr) {
     size_t offset;
     struct ethhdr *eth_hdr;
@@ -237,7 +235,7 @@ ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, const struct dhcp_server_optio
     return offset;
 }
 
-bool dhcp_unpack_msg(struct dhcp_msg *msg, const struct dhcp_server_options *options,
+bool dhcp_unpack_msg(struct dhcp_msg *msg, const struct srv_opts *options,
                      const uint8_t *buf, ssize_t buf_len) {
     size_t offset;
     struct ethhdr *eth_hdr;
@@ -297,7 +295,7 @@ bool dhcp_unpack_msg(struct dhcp_msg *msg, const struct dhcp_server_options *opt
     return true;
 }
 
-int create_socket(int *if_index) {
+int create_socket(int *if_index, const struct srv_opts *options) {
     int socket_fd;
     struct ifreq ifreq;
     struct sockaddr_ll addr;
@@ -312,7 +310,7 @@ int create_socket(int *if_index) {
 
     /* Get interface index */
     memset(&ifreq, 0, sizeof(struct ifreq));
-    strncpy(ifreq.ifr_name, INTERFACE_NAME, IFNAMSIZ - 1);
+    strncpy(ifreq.ifr_name, options->interface_name, IFNAMSIZ - 1);
     if(ioctl(socket_fd, SIOCGIFINDEX, &ifreq) < 0) {
         perror("ioctl(SIOCGIFINDEX)");
         exit(EXIT_FAILURE);
@@ -345,7 +343,7 @@ int create_socket(int *if_index) {
     }
 
     printf("Binded interface\n");
-    printf("|-name   %s\n", INTERFACE_NAME);
+    printf("|-name   %s\n", options->interface_name);
     printf("|-index  %d\n", *if_index);
     printf("|-IPv4   %s\n", inet_ntoa(((struct sockaddr_in *)
                                      &ifreq.ifr_addr)->sin_addr));
@@ -357,7 +355,7 @@ int create_socket(int *if_index) {
 }
 
 int main(int argc, char *argv[]) {
-    struct dhcp_server_options options;
+    struct srv_opts options;
 
     int socket_fd;
     int if_index;
@@ -372,12 +370,12 @@ int main(int argc, char *argv[]) {
     struct dhcp_msg msg;
     ssize_t msg_len;
 
-    options = options_dhcp_parse(argc, argv);
+    options = options_parse(argc, argv);
 
     options_print(&options);
     printf("\n");
 
-    socket_fd = create_socket(&if_index);
+    socket_fd = create_socket(&if_index, &options);
 
     buf = malloc(packet_buf_size * sizeof(uint8_t));
 

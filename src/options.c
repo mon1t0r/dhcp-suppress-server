@@ -11,6 +11,7 @@ static const char error_msg[] =
     "Usage: %s [OPTION]... ORIG_ADDR ORIG_MAC MY_ADDR MY_MAC \n(%s)\n";
 
 static const struct option longopts[] = {
+    { "interface",           required_argument, NULL, 'I' },
     { "server-port",         required_argument, NULL, 'S' },
     { "client-port",         required_argument, NULL, 'C' },
     { "conf-client-addr",    required_argument, NULL, 'i' },
@@ -24,7 +25,7 @@ static const struct option longopts[] = {
     { 0,                     0,                 0,    0   }
 };
 
-static const char optstring[] = "S:C:i:b:m:r:d:a:n:e:";
+static const char optstring[] = "I:S:C:i:b:m:r:d:a:n:e:";
 
 void options_error(const char *exec_name, const char *reason) {
     fprintf(stderr, error_msg, exec_name, reason);
@@ -64,9 +65,10 @@ bool options_parse_hw_addr(const char *arg, hw_addr_t *addr) {
     return true;
 }
 
-void options_set_default(struct dhcp_server_options *options) {
+void options_set_default(struct srv_opts *options) {
     memset(options, 0, sizeof(*options));
 
+    strcpy(options->interface_name, "eth0");
     options->dhcp_server_port    = 67;
     options->dhcp_client_port    = 68;
     options->conf_client_addr    = otonnet(1, 2, 3, 4);
@@ -79,11 +81,11 @@ void options_set_default(struct dhcp_server_options *options) {
     options->conf_time_rebinding = 0xFFFFFF;
 }
 
-struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
+struct srv_opts options_parse(int argc, char *argv[]) {
     extern int optind;
     extern char *optarg;
 
-    struct dhcp_server_options options;
+    struct srv_opts options;
     char c;
 
     options_set_default(&options);
@@ -97,6 +99,10 @@ struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
 
         switch(c) {
             case -1:
+                break;
+            case 'I':
+                strncpy(options.interface_name, optarg, IFNAMSIZ);
+                options.interface_name[IFNAMSIZ - 1] = '\0';
                 break;
             case 'S':
                 if(!options_parse_port(optarg, &options.dhcp_server_port)) {
@@ -176,10 +182,11 @@ struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
     return options;
 }
 
-void options_print(const struct dhcp_server_options *options) {
+void options_print(const struct srv_opts *options) {
     struct in_addr addr;
 
     printf("Options\n");
+    printf("|-interface              %s\n", options->interface_name);
     printf("|-server port            %d\n", options->dhcp_server_port);
     printf("|-client port            %d\n", options->dhcp_client_port);
 
