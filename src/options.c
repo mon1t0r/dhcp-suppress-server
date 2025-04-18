@@ -124,7 +124,7 @@ struct dhcp_server_options options_dhcp_parse(int argc, char *argv[]) {
                 }
                 break;
             default:
-                options_error(argv[0], "");
+                options_error(argv[0], "unknowm option");
         }
     } while(c != -1);
 

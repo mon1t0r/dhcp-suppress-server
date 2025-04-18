@@ -25,28 +25,29 @@ enum {
 
 void dhcp_add_reply_options(struct dhcp_msg *msg, const struct dhcp_server_options *options,
                             dhcp_opt_offset *offset) {
-    uint8_t opt_data[4];
+    uint32_t opt_data;
 
-    opt_data[0] = 0;
-    opt_data[1] = 255;
-    opt_data[2] = 255;
-    opt_data[3] = 255;
-    dhcp_opt(msg, offset, dhcp_opt_address_time, opt_data, 4);
-    dhcp_opt(msg, offset, dhcp_opt_renewal_time, opt_data, 4);
-    dhcp_opt(msg, offset, dhcp_opt_rebinding_time, opt_data, 4);
+    opt_data = htonl(0xFFFFFF);
+    dhcp_opt(msg, offset, dhcp_opt_address_time, &opt_data, 4);
+    dhcp_opt(msg, offset, dhcp_opt_renewal_time, &opt_data, 4);
+    dhcp_opt(msg, offset, dhcp_opt_rebinding_time, &opt_data, 4);
 
-    dhcp_opt(msg, offset, dhcp_opt_subnet_mask, &options->conf_network_mask, 4);
+    opt_data = htonl(options->conf_network_mask);
+    dhcp_opt(msg, offset, dhcp_opt_subnet_mask, &opt_data, 4);
 
-    dhcp_opt(msg, offset, dhcp_opt_broadcast_address, &options->conf_broadcast_ip, 4);
+    opt_data = htonl(options->conf_broadcast_ip);
+    dhcp_opt(msg, offset, dhcp_opt_broadcast_address, &opt_data, 4);
 
-    dhcp_opt(msg, offset, dhcp_opt_router, &options->conf_router_ip, 4);
+    opt_data = htonl(options->conf_router_ip);
+    dhcp_opt(msg, offset, dhcp_opt_router, &opt_data, 4);
 
-    dhcp_opt(msg, offset, dhcp_opt_dns, &options->conf_dns_ip, 4);
+    opt_data = htonl(options->conf_dns_ip);
+    dhcp_opt(msg, offset, dhcp_opt_dns, &opt_data, 4);
 }
 
 size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct dhcp_server_options *options,
                       enum dhcp_msg_type msg_type_ack, net_addr_t srv_ip) {
-    uint8_t opt_data[1];
+    uint32_t opt_data;
     dhcp_opt_offset offset;
 
     msg->opcode = dhcp_opcode_reply;
@@ -55,20 +56,21 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct dhcp_server_options *op
     msg->flags = htons(0x8000);
     msg->ciaddr = 0;
     if(msg_type_ack == dhcp_msg_type_ack) {
-        msg->yiaddr = options->conf_client_ip;
+        msg->yiaddr = htonl(options->conf_client_ip);
     } else {
         msg->yiaddr = 0;
     }
-    msg->siaddr = options->my_ip;
+    msg->siaddr = htonl(options->my_ip);
     msg->giaddr = 0;
 
     dhcp_opt_begin(msg, &offset);
 
-    opt_data[0] = msg_type_ack;
-    dhcp_opt(msg, &offset, dhcp_opt_msg_type, opt_data, 1);
+    opt_data = msg_type_ack;
+    dhcp_opt(msg, &offset, dhcp_opt_msg_type, &opt_data, 1);
 
     if(srv_ip != 0) {
-        dhcp_opt(msg, &offset, dhcp_opt_srv_id, &srv_ip, 4);
+        opt_data = htonl(srv_ip);
+        dhcp_opt(msg, &offset, dhcp_opt_srv_id, &opt_data, 4);
     }
 
     if(msg_type_ack == dhcp_msg_type_ack) {
@@ -77,11 +79,11 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct dhcp_server_options *op
 
     dhcp_opt_end(msg, &offset);
 
-    return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(dhcp_opt_offset);
+    return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(uint8_t);
 }
 
 size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct dhcp_server_options *options) {
-    uint8_t opt_data[1];
+    uint32_t opt_data;
     dhcp_opt_offset offset;
 
     msg->opcode = dhcp_opcode_reply;
@@ -89,22 +91,23 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct dhcp_server_options *
     msg->secs = 0;
     msg->flags = htons(0x8000);
     msg->ciaddr = 0;
-    msg->yiaddr = options->conf_client_ip;
-    msg->siaddr = options->my_ip;
+    msg->yiaddr = htonl(options->conf_client_ip);
+    msg->siaddr = htonl(options->my_ip);
     msg->giaddr = 0;
 
     dhcp_opt_begin(msg, &offset);
 
-    opt_data[0] = dhcp_msg_type_offer;
-    dhcp_opt(msg, &offset, dhcp_opt_msg_type, opt_data, 1);
+    opt_data = dhcp_msg_type_offer;
+    dhcp_opt(msg, &offset, dhcp_opt_msg_type, &opt_data, 1);
 
-    dhcp_opt(msg, &offset, dhcp_opt_srv_id, &options->my_ip, 4);
+    opt_data = htonl(options->my_ip);
+    dhcp_opt(msg, &offset, dhcp_opt_srv_id, &opt_data, 4);
 
     dhcp_add_reply_options(msg, options, &offset);
 
     dhcp_opt_end(msg, &offset);
 
-    return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(dhcp_opt_offset);
+    return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(uint8_t);
 }
 
 size_t dhcp_handle_request(struct dhcp_msg *msg, const struct dhcp_server_options *options,
@@ -114,6 +117,7 @@ size_t dhcp_handle_request(struct dhcp_msg *msg, const struct dhcp_server_option
 
     if(dhcp_opt_get(msg, dhcp_opt_srv_id, &opt_data_ptr) == 4) {
         memcpy(&srv_ip, opt_data_ptr, sizeof(srv_ip));
+        srv_ip = ntohl(srv_ip);
     } else {
         opt_data_ptr = NULL;
         srv_ip = 0;
@@ -191,12 +195,12 @@ ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, const struct dhcp_server_optio
     offset = 0;
 
     eth_hdr = (struct ethhdr *) (buf + offset);
-    eth_hdr->h_source[0] = ntoo(hw_addr, 0);
-    eth_hdr->h_source[1] = ntoo(hw_addr, 1);
-    eth_hdr->h_source[2] = ntoo(hw_addr, 2);
-    eth_hdr->h_source[3] = ntoo(hw_addr, 3);
-    eth_hdr->h_source[4] = ntoo(hw_addr, 4);
-    eth_hdr->h_source[5] = ntoo(hw_addr, 5);
+    eth_hdr->h_source[0] = ntoo(hw_addr, 5);
+    eth_hdr->h_source[1] = ntoo(hw_addr, 4);
+    eth_hdr->h_source[2] = ntoo(hw_addr, 3);
+    eth_hdr->h_source[3] = ntoo(hw_addr, 2);
+    eth_hdr->h_source[4] = ntoo(hw_addr, 1);
+    eth_hdr->h_source[5] = ntoo(hw_addr, 0);
     memset(&eth_hdr->h_dest, 255, 6);
     eth_hdr->h_proto = htons(ETH_P_IP);
     offset += sizeof(struct ethhdr);
@@ -371,12 +375,12 @@ int main(int argc, char *argv[]) {
 
     socket_fd = create_socket(&if_index);
 
-    net_addr = 0;
-    hw_addr = 0;
-
     buf = malloc(packet_buf_size * sizeof(uint8_t));
 
     while((buf_len = recv(socket_fd, buf, packet_buf_size * sizeof(uint8_t), 0) > 0)) {
+        net_addr = 0;
+        hw_addr = 0;
+
         if(!dhcp_unpack_msg(&msg, &options, buf, buf_len)) {
             continue;
         }
