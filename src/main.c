@@ -21,6 +21,17 @@ enum {
     packet_buf_size = 65536
 };
 
+void dhcp_set_reply_header(struct dhcp_msg *msg) {
+    msg->opcode = dhcp_opcode_reply;
+    msg->hops = 0;
+    msg->secs = 0;
+    msg->flags = htons(0x8000);
+    msg->ciaddr = 0;
+    msg->yiaddr = 0;
+    msg->siaddr = 0;
+    msg->giaddr = 0;
+}
+
 void dhcp_add_reply_options(struct dhcp_msg *msg, const struct srv_opts *options,
                             dhcp_opt_off_t *offset) {
     uint32_t opt_data;
@@ -52,18 +63,11 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct srv_opts *options,
     uint32_t opt_data;
     dhcp_opt_off_t offset;
 
-    msg->opcode = dhcp_opcode_reply;
-    msg->hops = 0;
-    msg->secs = 0;
-    msg->flags = htons(0x8000);
-    msg->ciaddr = 0;
+    dhcp_set_reply_header(msg);
     if(msg_type_ack == dhcp_msg_type_ack) {
         msg->yiaddr = htonl(options->conf_client_addr);
-    } else {
-        msg->yiaddr = 0;
     }
     msg->siaddr = htonl(options->my_net_addr);
-    msg->giaddr = 0;
 
     dhcp_opt_begin(msg, &offset);
 
@@ -88,14 +92,9 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct srv_opts *options) {
     uint32_t opt_data;
     dhcp_opt_off_t offset;
 
-    msg->opcode = dhcp_opcode_reply;
-    msg->hops = 0;
-    msg->secs = 0;
-    msg->flags = htons(0x8000);
-    msg->ciaddr = 0;
+    dhcp_set_reply_header(msg);
     msg->yiaddr = htonl(options->conf_client_addr);
     msg->siaddr = htonl(options->my_net_addr);
-    msg->giaddr = 0;
 
     dhcp_opt_begin(msg, &offset);
 
