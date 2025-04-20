@@ -8,7 +8,7 @@
 #include "options.h"
 
 static const char error_msg[] =
-    "Usage: %s [OPTION]... ORIG_ADDR ORIG_MAC MY_ADDR MY_MAC \n(%s)\n";
+    "Usage: %s [OPTION]... [ORIG_ADDR] [ORIG_MAC] [MY_ADDR] [MY_MAC]\n(%s)\n";
 
 static const struct option longopts[] = {
     { "interface",           required_argument, NULL, 'I' },
@@ -73,7 +73,7 @@ void options_set_default(struct srv_opts *options) {
     options->dhcp_client_port    = 68;
     options->conf_client_addr    = otonnet(1, 2, 3, 4);
     options->conf_broadcast_addr = otonnet(1, 2, 3, 255);
-    options->conf_network_mask   = otonnet(255, 255, 255, 0);
+    options->conf_subnet_mask   = otonnet(255, 255, 255, 0);
     options->conf_router_addr    = otonnet(1, 2, 3, 1);
     options->conf_dns_addr       = otonnet(1, 2, 3, 1);
     options->conf_time_address   = 0xFFFFFF;
@@ -125,7 +125,7 @@ struct srv_opts options_parse(int argc, char *argv[]) {
                 }
                 break;
             case 'm':
-                if(!options_parse_net_addr(optarg, &options.conf_network_mask)) {
+                if(!options_parse_net_addr(optarg, &options.conf_subnet_mask)) {
                     options_error(argv[0], "conf-network-mask - invalid value");
                 }
                 break;
@@ -208,7 +208,7 @@ void options_print(const struct srv_opts *options) {
     printf("|-config client IPv4     %s\n", inet_ntoa(addr));
     addr.s_addr = htonl(options->conf_broadcast_addr);
     printf("|-config broadcast IPV4  %s\n", inet_ntoa(addr));
-    addr.s_addr = htonl(options->conf_network_mask);
+    addr.s_addr = htonl(options->conf_subnet_mask);
     printf("|-config network mask    %s\n", inet_ntoa(addr));
     addr.s_addr = htonl(options->conf_router_addr);
     printf("|-config router IPV4     %s\n", inet_ntoa(addr));

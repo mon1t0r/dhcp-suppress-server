@@ -15,7 +15,7 @@ struct srv_opts {
     net_addr_t my_net_addr;
     hw_addr_t my_hw_addr;
     net_addr_t conf_client_addr;
-    net_addr_t conf_network_mask;
+    net_addr_t conf_subnet_mask;
     net_addr_t conf_router_addr;
     net_addr_t conf_broadcast_addr;
     net_addr_t conf_dns_addr;

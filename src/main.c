@@ -45,7 +45,7 @@ void dhcp_add_reply_options(struct dhcp_msg *msg, const struct srv_opts *options
     opt_data = htonl(options->conf_time_rebinding);
     dhcp_opt(msg, offset, dhcp_opt_rebinding_time, &opt_data, 4);
 
-    opt_data = htonl(options->conf_network_mask);
+    opt_data = htonl(options->conf_subnet_mask);
     dhcp_opt(msg, offset, dhcp_opt_subnet_mask, &opt_data, 4);
 
     opt_data = htonl(options->conf_broadcast_addr);
