@@ -20,21 +20,21 @@ typedef uint32_t net_addr_t;
 /* DHCP options filling offset */
 typedef ssize_t dhcp_opt_off_t;
 
-/* Macro for converting octets of network address to net_addr_t in host byte order */
-/* Octets to number */
+/* Macro for converting octets of network address to net_addr_t
+ * (octets to number) in host byte order */
 #define otonnet(i1, i2, i3, i4) \
     ((net_addr_t) i4        | (net_addr_t) (i3 << 8 ) | \
     ((net_addr_t) i2 << 16) | (net_addr_t) (i1 << 24))
 
-/* Macro for converting octets of hardware address to hw_addr_t in host byte order */
-/* Octets to number */
+/* Macro for converting octets of hardware address to hw_addr_t
+ * (octets to number) in host byte order */
 #define otonmac(m1, m2, m3, m4, m5, m6) \
     ((hw_addr_t) m6        | ((hw_addr_t) m5 << 8 ) | \
     ((hw_addr_t) m4 << 16) | ((hw_addr_t) m3 << 24) | \
     ((hw_addr_t) m2 << 32) | ((hw_addr_t) m1 << 40))
 
-/* Macro for getting octet value from address in network byte order */
-/* Number to octets */
+/* Macro for getting octet value from address (number to octets)
+ * in network byte order */
 #define ntoo(addr, octet) \
     ((char) ((addr >> 8 * octet) & 0xFF))
 

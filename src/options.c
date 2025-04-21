@@ -48,7 +48,6 @@ bool options_parse_net_addr(const char *arg, net_addr_t *addr) {
     *addr = ntohl(*addr);
 
     return true;
-
 }
 
 bool options_parse_hw_addr(const char *arg, hw_addr_t *addr) {
@@ -73,7 +72,7 @@ void options_set_default(struct srv_opts *options) {
     options->dhcp_client_port    = 68;
     options->conf_client_addr    = otonnet(1, 2, 3, 4);
     options->conf_broadcast_addr = otonnet(1, 2, 3, 255);
-    options->conf_subnet_mask   = otonnet(255, 255, 255, 0);
+    options->conf_subnet_mask    = otonnet(255, 255, 255, 0);
     options->conf_router_addr    = otonnet(1, 2, 3, 1);
     options->conf_dns_addr       = otonnet(1, 2, 3, 1);
     options->conf_time_address   = 0xFFFFFF;
@@ -115,22 +114,28 @@ struct srv_opts options_parse(int argc, char *argv[]) {
                 }
                 break;
             case 'i':
-                if(!options_parse_net_addr(optarg, &options.conf_client_addr)) {
+                if(!options_parse_net_addr(optarg,
+                                           &options.conf_client_addr)) {
                     options_error(argv[0], "conf-client-addr - invalid value");
                 }
                 break;
             case 'b':
-                if(!options_parse_net_addr(optarg, &options.conf_broadcast_addr)) {
-                    options_error(argv[0], "conf-broadcast-addr - invalid value");
+                if(!options_parse_net_addr(optarg,
+                                           &options.conf_broadcast_addr)) {
+                    options_error(argv[0],
+                                  "conf-broadcast-addr - invalid value");
                 }
                 break;
             case 'm':
-                if(!options_parse_net_addr(optarg, &options.conf_subnet_mask)) {
-                    options_error(argv[0], "conf-network-mask - invalid value");
+                if(!options_parse_net_addr(optarg,
+                                           &options.conf_subnet_mask)) {
+                    options_error(argv[0],
+                                  "conf-network-mask - invalid value");
                 }
                 break;
             case 'r':
-                if(!options_parse_net_addr(optarg, &options.conf_router_addr)) {
+                if(!options_parse_net_addr(optarg,
+                                           &options.conf_router_addr)) {
                     options_error(argv[0], "conf-router-addr - invalid value");
                 }
                 break;
@@ -141,21 +146,24 @@ struct srv_opts options_parse(int argc, char *argv[]) {
                 break;
             case 'a':
                 if(!options_parse_time(optarg, &options.conf_time_address)) {
-                    options_error(argv[0], "conf-time-address - invalid value");
+                    options_error(argv[0],
+                                  "conf-time-address - invalid value");
                 }
                 break;
             case 'n':
                 if(!options_parse_time(optarg, &options.conf_time_renewal)) {
-                    options_error(argv[0], "conf-time-renewal - invalid value");
+                    options_error(argv[0],
+                                  "conf-time-renewal - invalid value");
                 }
                 break;
             case 'e':
                 if(!options_parse_time(optarg, &options.conf_time_rebinding)) {
-                    options_error(argv[0], "conf-time-rebinding - invalid value");
+                    options_error(argv[0],
+                                  "conf-time-rebinding - invalid value");
                 }
                 break;
             default:
-                options_error(argv[0], "unknowm option");
+                options_error(argv[0], "unknown option");
         }
     } while(c != -1);
 

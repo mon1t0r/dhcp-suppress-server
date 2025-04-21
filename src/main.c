@@ -32,7 +32,8 @@ void dhcp_set_reply_header(struct dhcp_msg *msg) {
     msg->giaddr = 0;
 }
 
-void dhcp_add_reply_options(struct dhcp_msg *msg, const struct srv_opts *options,
+void dhcp_add_reply_options(struct dhcp_msg *msg,
+                            const struct srv_opts *options,
                             dhcp_opt_off_t *offset) {
     uint32_t opt_data;
 
@@ -85,7 +86,8 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct srv_opts *options,
 
     dhcp_opt_end(msg, &offset);
 
-    return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(uint8_t);
+    return sizeof(struct dhcp_msg) - sizeof(msg->options) +
+    offset * sizeof(uint8_t);
 }
 
 size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct srv_opts *options) {
@@ -108,10 +110,12 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct srv_opts *options) {
 
     dhcp_opt_end(msg, &offset);
 
-    return sizeof(struct dhcp_msg) - sizeof(msg->options) + offset * sizeof(uint8_t);
+    return sizeof(struct dhcp_msg) - sizeof(msg->options) +
+    offset * sizeof(uint8_t);
 }
 
-size_t dhcp_handle_request(struct dhcp_msg *msg, const struct srv_opts *options,
+size_t dhcp_handle_request(struct dhcp_msg *msg,
+                           const struct srv_opts *options,
                            net_addr_t *netw_addr, hw_addr_t *hw_addr) {
     uint8_t *opt_data_ptr;
     net_addr_t srv_ip;
@@ -177,8 +181,9 @@ uint16_t compute_ip_checksum(uint16_t* ptr, size_t cnt) {
     return (uint16_t) sum;
 }
 
-ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, const struct srv_opts *options,
-                      ssize_t msg_len, uint8_t *buf, net_addr_t netw_addr, hw_addr_t hw_addr) {
+ssize_t dhcp_pack_msg(const struct dhcp_msg *msg,
+                      const struct srv_opts *options, ssize_t msg_len,
+                      uint8_t *buf, net_addr_t netw_addr, hw_addr_t hw_addr) {
     size_t offset;
     struct ethhdr *eth_hdr;
     struct iphdr *ip_hdr;
@@ -215,7 +220,8 @@ ssize_t dhcp_pack_msg(const struct dhcp_msg *msg, const struct srv_opts *options
     ip_hdr->protocol = 17;
     ip_hdr->saddr = htonl(netw_addr);
     ip_hdr->daddr = htonl(INADDR_BROADCAST);
-    ip_hdr->tot_len = htons(msg_len + sizeof(struct udphdr) + sizeof(struct iphdr));
+    ip_hdr->tot_len = htons(msg_len + sizeof(struct udphdr) +
+                            sizeof(struct iphdr));
     ip_hdr->check = 0;
     ip_hdr->check = compute_ip_checksum((uint16_t *) ip_hdr, ip_hdr->ihl << 2);
     offset += sizeof(struct iphdr);
@@ -378,7 +384,8 @@ int main(int argc, char *argv[]) {
 
     buf = malloc(packet_buf_size * sizeof(uint8_t));
 
-    while((buf_len = recv(socket_fd, buf, packet_buf_size * sizeof(uint8_t), 0) > 0)) {
+    while((buf_len = recv(socket_fd, buf,
+                          packet_buf_size * sizeof(uint8_t), 0) > 0)) {
         net_addr = 0;
         hw_addr = 0;
 
@@ -386,11 +393,13 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        if((msg_len = dhcp_handle_msg(&msg, &options, &net_addr, &hw_addr)) < 0) {
+        if((msg_len = dhcp_handle_msg(&msg, &options, &net_addr,
+                                      &hw_addr)) < 0) {
             continue;
         }
 
-        if((buf_len = dhcp_pack_msg(&msg, &options, msg_len, buf, net_addr, hw_addr)) < 0) {
+        if((buf_len = dhcp_pack_msg(&msg, &options, msg_len, buf, net_addr,
+                                    hw_addr)) < 0) {
             continue;
         }
 
