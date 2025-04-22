@@ -16,6 +16,8 @@
 
 #include "options.h"
 #include "dhcp.h"
+#include "if_utils.h"
+#include "checksum.h"
 
 enum {
     packet_buf_size = 65536
@@ -138,7 +140,7 @@ size_t dhcp_handle_request(struct dhcp_msg *msg,
     return dhcp_reply_ack(msg, options, dhcp_msg_type_nak, srv_ip);
 }
 
-ssize_t dhcp_handle_msg(struct dhcp_msg *msg, const struct srv_opts *options,
+ssize_t dhcp_msg_handle(struct dhcp_msg *msg, const struct srv_opts *options,
                         net_addr_t *netw_addr, hw_addr_t *hw_addr) {
     uint8_t *opt_data_ptr;
 
@@ -157,33 +159,9 @@ ssize_t dhcp_handle_msg(struct dhcp_msg *msg, const struct srv_opts *options,
     return -1;
 }
 
-uint16_t compute_ip_checksum(uint16_t* ptr, size_t cnt) {
-    uint32_t sum;
-
-    sum = 0;
-
-    while(cnt > 1) {
-        sum += *ptr;
-        ptr++;
-        cnt -= 2;
-    }
-
-    if(cnt > 0) {
-        sum += (*ptr) & htons(0xFF00);
-    }
-
-    while(sum >> 16) {
-        sum = (sum & 0xffff) + (sum >> 16);
-    }
-
-    sum = ~sum;
-
-    return (uint16_t) sum;
-}
-
-ssize_t dhcp_pack_msg(const struct dhcp_msg *msg,
-                      const struct srv_opts *options, ssize_t msg_len,
-                      uint8_t *buf, net_addr_t netw_addr, hw_addr_t hw_addr) {
+ssize_t dhcp_msg_pack(const struct dhcp_msg *msg, ssize_t msg_len,
+                      const struct srv_opts *options, uint8_t *buf,
+                      net_addr_t netw_addr, hw_addr_t hw_addr) {
     size_t offset;
     struct ethhdr *eth_hdr;
     struct iphdr *ip_hdr;
@@ -240,7 +218,7 @@ ssize_t dhcp_pack_msg(const struct dhcp_msg *msg,
     return offset;
 }
 
-bool dhcp_unpack_msg(struct dhcp_msg *msg, const struct srv_opts *options,
+bool dhcp_msg_unpack(struct dhcp_msg *msg, const struct srv_opts *options,
                      const uint8_t *buf, ssize_t buf_len) {
     size_t offset;
     struct ethhdr *eth_hdr;
@@ -300,63 +278,29 @@ bool dhcp_unpack_msg(struct dhcp_msg *msg, const struct srv_opts *options,
     return true;
 }
 
-int create_socket(int *if_index, const struct srv_opts *options) {
+int create_socket(const struct srv_opts *options) {
     int socket_fd;
-    struct ifreq ifreq;
-    struct sockaddr_ll addr;
 
-    uint8_t addr_link[6];
-
-    /* Create socket */
     if((socket_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP))) < 0) {
         perror("socket()");
         exit(EXIT_FAILURE);
     }
 
-    /* Get interface index */
-    memset(&ifreq, 0, sizeof(struct ifreq));
-    strncpy(ifreq.ifr_name, options->interface_name, IFNAMSIZ - 1);
-    if(ioctl(socket_fd, SIOCGIFINDEX, &ifreq) < 0) {
-        perror("ioctl(SIOCGIFINDEX)");
-        exit(EXIT_FAILURE);
-    }
-    *if_index = ifreq.ifr_ifindex;
+    return socket_fd;
+}
 
-    /* Get interface hardware address */
-    if(ioctl(socket_fd, SIOCGIFHWADDR, &ifreq) < 0) {
-        perror("ioctl(SIOCGIFHWADDR)");
-        exit(EXIT_FAILURE);
-    }
-    memcpy(addr_link, &ifreq.ifr_hwaddr.sa_data, sizeof(addr_link));
+void bind_socket(int socket_fd, int if_index) {
+    struct sockaddr_ll addr;
 
-    /* Get interface address */
-    if(ioctl(socket_fd, SIOCGIFADDR, &ifreq) < 0) {
-        perror("ioctl(SIOCGIFADDR)");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Fill sockaddr_ll structure */
     memset(&addr, 0, sizeof(addr));
     addr.sll_family = AF_PACKET;
     addr.sll_protocol = htons(ETH_P_IP);
-    addr.sll_ifindex = *if_index;
+    addr.sll_ifindex = if_index;
 
-    /* Bind interface */
     if(bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
         perror("bind()");
         exit(EXIT_FAILURE);
     }
-
-    printf("Binded interface\n");
-    printf("|-name   %s\n", options->interface_name);
-    printf("|-index  %d\n", *if_index);
-    printf("|-IPv4   %s\n", inet_ntoa(((struct sockaddr_in *)
-                                     &ifreq.ifr_addr)->sin_addr));
-    printf("|-MAC    %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1],
-           addr_link[2], addr_link[3], addr_link[4], addr_link[5]);
-    printf("Socket initialized successfully\n\n");
-
-    return socket_fd;
 }
 
 int main(int argc, char *argv[]) {
@@ -365,40 +309,48 @@ int main(int argc, char *argv[]) {
     int socket_fd;
     int if_index;
 
-    struct sockaddr_ll addr;
-    net_addr_t net_addr;
-    hw_addr_t hw_addr;
-
     uint8_t *buf;
     ssize_t buf_len;
 
     struct dhcp_msg msg;
     ssize_t msg_len;
 
-    options = options_parse(argc, argv);
+    struct sockaddr_ll addr;
+    net_addr_t net_addr;
+    hw_addr_t hw_addr;
 
+    options = options_parse(argc, argv);
     options_print(&options);
     printf("\n");
 
-    socket_fd = create_socket(&if_index, &options);
+    socket_fd = create_socket(&options);
+    if_index = get_interface_index(socket_fd, options.interface_name);
+    bind_socket(socket_fd, if_index);
 
     buf = malloc(packet_buf_size * sizeof(uint8_t));
+    if(buf == NULL) {
+        perror("malloc()");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Initialized successfully\n");
+    printf("Listening for incoming DHCP requests\n\n");
 
     while((buf_len = recv(socket_fd, buf,
                           packet_buf_size * sizeof(uint8_t), 0) > 0)) {
         net_addr = 0;
         hw_addr = 0;
 
-        if(!dhcp_unpack_msg(&msg, &options, buf, buf_len)) {
+        if(!dhcp_msg_unpack(&msg, &options, buf, buf_len)) {
             continue;
         }
 
-        if((msg_len = dhcp_handle_msg(&msg, &options, &net_addr,
+        if((msg_len = dhcp_msg_handle(&msg, &options, &net_addr,
                                       &hw_addr)) < 0) {
             continue;
         }
 
-        if((buf_len = dhcp_pack_msg(&msg, &options, msg_len, buf, net_addr,
+        if((buf_len = dhcp_msg_pack(&msg, msg_len, &options, buf, net_addr,
                                     hw_addr)) < 0) {
             continue;
         }
