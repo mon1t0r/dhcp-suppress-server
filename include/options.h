@@ -10,8 +10,8 @@ struct srv_opts {
     char interface_name[IFNAMSIZ];
     uint16_t dhcp_server_port;
     uint16_t dhcp_client_port;
-    net_addr_t orig_net_addr;
-    hw_addr_t orig_hw_addr;
+    uint16_t mac_table_size;
+    uint16_t mac_table_max_cnt;
     net_addr_t my_net_addr;
     hw_addr_t my_hw_addr;
     net_addr_t conf_client_addr;

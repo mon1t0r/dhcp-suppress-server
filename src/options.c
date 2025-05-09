@@ -8,12 +8,14 @@
 #include "options.h"
 
 static const char error_msg[] =
-    "Usage: %s [OPTION]... [ORIG_ADDR] [ORIG_MAC] [MY_ADDR] [MY_MAC]\n(%s)\n";
+    "Usage: %s [OPTION]... [MY_ADDR] [MY_MAC]\n(%s)\n";
 
 static const struct option longopts[] = {
     { "interface",           required_argument, NULL, 'I' },
     { "server-port",         required_argument, NULL, 'S' },
     { "client-port",         required_argument, NULL, 'C' },
+    { "mac-table-size",      required_argument, NULL, 's' },
+    { "mac-table-max-cnt",   required_argument, NULL, 't' },
     { "conf-client-addr",    required_argument, NULL, 'i' },
     { "conf-broadcast-addr", required_argument, NULL, 'b' },
     { "conf-network-mask",   required_argument, NULL, 'm' },
@@ -25,7 +27,7 @@ static const struct option longopts[] = {
     { 0,                     0,                 0,    0   }
 };
 
-static const char optstring[] = "I:S:C:i:b:m:r:d:a:n:e:";
+static const char optstring[] = "I:S:C:s:t:i:b:m:r:d:a:n:e:";
 
 void options_error(const char *exec_name, const char *reason) {
     fprintf(stderr, error_msg, exec_name, reason);
@@ -36,7 +38,7 @@ bool options_parse_time(const char *arg, uint32_t *time) {
     return sscanf(arg, "%ud", time) == 1;
 }
 
-bool options_parse_port(const char *arg, uint16_t *port) {
+bool options_parse_num(const char *arg, uint16_t *port) {
     return sscanf(arg, "%hu", port) == 1;
 }
 
@@ -70,6 +72,8 @@ void options_set_default(struct srv_opts *options) {
     strcpy(options->interface_name, "eth0");
     options->dhcp_server_port    = 67;
     options->dhcp_client_port    = 68;
+    options->mac_table_size      = 5;
+    options->mac_table_max_cnt   = 5;
     options->conf_client_addr    = otonnet(1, 2, 3, 4);
     options->conf_broadcast_addr = otonnet(1, 2, 3, 255);
     options->conf_subnet_mask    = otonnet(255, 255, 255, 0);
@@ -104,13 +108,24 @@ struct srv_opts options_parse(int argc, char *argv[]) {
                 options.interface_name[IFNAMSIZ - 1] = '\0';
                 break;
             case 'S':
-                if(!options_parse_port(optarg, &options.dhcp_server_port)) {
+                if(!options_parse_num(optarg, &options.dhcp_server_port)) {
                     options_error(argv[0], "server-port - invalid value");
                 }
                 break;
             case 'C':
-                if(!options_parse_port(optarg, &options.dhcp_client_port)) {
+                if(!options_parse_num(optarg, &options.dhcp_client_port)) {
                     options_error(argv[0], "client-port - invalid value");
+                }
+                break;
+            case 's':
+                if(!options_parse_num(optarg, &options.mac_table_size)) {
+                    options_error(argv[0], "mac-table-size - invalid value");
+                }
+                break;
+            case 't':
+                if(!options_parse_num(optarg, &options.mac_table_max_cnt)) {
+                    options_error(argv[0],
+                                  "mac-table-max-cnt - invalid value");
                 }
                 break;
             case 'i':
@@ -167,23 +182,15 @@ struct srv_opts options_parse(int argc, char *argv[]) {
         }
     } while(c != -1);
 
-    if(optind + 4 != argc) {
+    if(optind + 2 != argc) {
         options_error(argv[0], "missing required parameters");
     }
 
-    if(!options_parse_net_addr(argv[optind], &options.orig_net_addr)) {
-        options_error(argv[0], "ORIG_ADDR - invalid value");
-    }
-
-    if(!options_parse_hw_addr(argv[optind + 1], &options.orig_hw_addr)) {
-        options_error(argv[0], "ORIG_MAC - invalid value");
-    }
-
-    if(!options_parse_net_addr(argv[optind + 2], &options.my_net_addr)) {
+    if(!options_parse_net_addr(argv[optind], &options.my_net_addr)) {
         options_error(argv[0], "MY_ADDR - invalid value");
     }
 
-    if(!options_parse_hw_addr(argv[optind + 3], &options.my_hw_addr)) {
+    if(!options_parse_hw_addr(argv[optind + 1], &options.my_hw_addr)) {
         options_error(argv[0], "MY_MAC - invalid value");
     }
 
@@ -195,15 +202,10 @@ void options_print(const struct srv_opts *options) {
 
     printf("Options\n");
     printf("|-interface              %s\n", options->interface_name);
-    printf("|-server port            %d\n", options->dhcp_server_port);
-    printf("|-client port            %d\n", options->dhcp_client_port);
-
-    addr.s_addr = htonl(options->orig_net_addr);
-    printf("|-orig IPv4              %s\n", inet_ntoa(addr));
-    printf("|-orig MAC               %hhx:%hhx:%hhx:%hhx:%hhx:%hhx\n",
-           ntoo(options->orig_hw_addr, 5), ntoo(options->orig_hw_addr, 4),
-           ntoo(options->orig_hw_addr, 3), ntoo(options->orig_hw_addr, 2),
-           ntoo(options->orig_hw_addr, 1), ntoo(options->orig_hw_addr, 0));
+    printf("|-server port            %hu\n", options->dhcp_server_port);
+    printf("|-client port            %hu\n", options->dhcp_client_port);
+    printf("|-MAC table size         %hu\n", options->mac_table_size);
+    printf("|-MAC table max count    %hu\n", options->mac_table_max_cnt);
 
     addr.s_addr = htonl(options->my_net_addr);
     printf("|-my IPv4                %s\n", inet_ntoa(addr));
@@ -222,8 +224,8 @@ void options_print(const struct srv_opts *options) {
     printf("|-config router IPV4     %s\n", inet_ntoa(addr));
     addr.s_addr = htonl(options->conf_dns_addr);
     printf("|-config dns IPV4        %s\n", inet_ntoa(addr));
-    printf("|-config time address    %d\n", options->conf_time_address);
-    printf("|-config time renewal    %d\n", options->conf_time_renewal);
-    printf("|-config time rebinding  %d\n", options->conf_time_rebinding);
+    printf("|-config time address    %ud\n", options->conf_time_address);
+    printf("|-config time renewal    %ud\n", options->conf_time_renewal);
+    printf("|-config time rebinding  %ud\n", options->conf_time_rebinding);
 }
 

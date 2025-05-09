@@ -13,6 +13,7 @@ int get_interface_index(int socket_fd, const char *interface_name) {
         perror("ioctl(SIOCGIFINDEX)");
         exit(EXIT_FAILURE);
     }
+
     return ifreq.ifr_ifindex;
 }
 
