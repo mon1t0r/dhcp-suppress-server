@@ -1,13 +1,17 @@
 ## Overview
 This project is an implementation of a simple DHCP server, which supresses
-other DHCP server in a network to send its own parameters.
+other DHCP servers in a network to send its own parameters.
 
 The application listens for any broadcast and unicast DHCP traffic and replies
 to the following messages:
  - DHCPDISCOVER: send DHCPOFFER with configured parameters;
  - DHCPREQUEST: if target server is the application server, send DHCPACK with
- configured parameters, otherwise send DHCPNAK with sender IP and MAC address
- of the other server.
+ configured parameters, otherwise send DHCPNAK. DHCPNAK is sent with the IP of
+ requested (other in network) server, and MAC is also set, if the appropriate
+ IP:MAC pair is found in application's MAC table.
+
+Application MAC table is filled when DHCPOFFER message is received from any
+other DHCP server in network.
 
 Currently the application DHCP server is only sending broadcast DHCP messages.
 
@@ -33,19 +37,23 @@ make
 
 ### Run
 ```
-sudo ./dhcp_server [OPTION]... [ORIG_ADDR] [ORIG_MAC] [MY_ADDR] [MY_MAC]
+sudo ./dhcp_server [OPTION]... [MY_ADDR] [MY_MAC]
 ```
 
 ### Options
 ```
-ORIG_ADDR - network address of the other DHCP server in the network 
-ORIG_MAC  - MAC address of the other DHCP server in the network 
-MY_ADDR   - network address, which will be used as the application's DHCP server own address
-MY_MAC    - MAC address, which will be used as the application's DHCP server own address
+MY_ADDR - network address, which will be used as the application DHCP server own address
+MY_MAC  - MAC address, which will be used as the application DHCP server own address
 
 -I --interface              interface name
 -S --server-port            port number for DHCP requests
 -C --client-port            port number for DHCP responses
+-s --mac-table-size         MAC table size (entry count is not limited to
+                            this number; this number only indicates the number
+                            of cells, which will be allocated to MAC hashtable)
+-t --mac-table-max-cnt      MAC table max entry count (actual limit for MAC
+                            table entries; when the limit is reached, table is
+                            cleared)
 -i --conf-client-addr       DHCP configuration (yiaddr)  - client address
 -b --conf-broadcast-addr    DHCP configuration (opt. 28) - network broadcast address
 -m --conf-subnet-mask       DHCP configuration (opt. 1)  - subnet mask
@@ -57,5 +65,4 @@ MY_MAC    - MAC address, which will be used as the application's DHCP server own
 ```
 
 ## TODO
- - implement work in networks with more than one DHCP server:
-   send DHCPNAK with dynamic IP and MAC address of the other server.
+ - implement option to manually set initial entries for MAC table.
