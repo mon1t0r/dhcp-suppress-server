@@ -1,5 +1,5 @@
 CC:=gcc
-CFLAGS:=-Iinclude/ -Werror -Wall -m64 -std=c99 -pedantic
+CFLAGS:=-Iinclude/ -Werror -Wall -m64 -std=c89 -pedantic
 LDLIBS:=
 
 TARGET:=dhcp_server

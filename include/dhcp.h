@@ -36,7 +36,7 @@ typedef ssize_t dhcp_opt_off_t;
 /* Macro for getting octet value from address (number to octets)
  * in network byte order */
 #define ntoo(addr, octet) \
-    ((char) ((addr >> 8 * octet) & 0xFF))
+    ((unsigned char) ((addr >> 8 * octet) & 0xFF))
 
 struct dhcp_msg {
     uint8_t opcode;

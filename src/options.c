@@ -53,11 +53,19 @@ bool options_parse_net_addr(const char *arg, net_addr_t *addr) {
 }
 
 bool options_parse_hw_addr(const char *arg, hw_addr_t *addr) {
-    uint8_t addr_bytes[6];
-    if(sscanf(arg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &addr_bytes[0],
+    uint16_t addr_bytes[6];
+    int i;
+
+    if(sscanf(arg, "%hx:%hx:%hx:%hx:%hx:%hx", &addr_bytes[0],
               &addr_bytes[1], &addr_bytes[2], &addr_bytes[3], &addr_bytes[4],
               &addr_bytes[5]) != 6) {
         return false;
+    }
+
+    for(i = 0; i < sizeof(addr_bytes) / sizeof(addr_bytes[0]); i++) {
+        if(addr_bytes[i] > 255) {
+            return false;
+        }
     }
 
     *addr = otonmac(addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3],
@@ -209,7 +217,7 @@ void options_print(const struct srv_opts *options) {
 
     addr.s_addr = htonl(options->my_net_addr);
     printf("|-my IPv4                %s\n", inet_ntoa(addr));
-    printf("|-my MAC                 %hhx:%hhx:%hhx:%hhx:%hhx:%hhx\n",
+    printf("|-my MAC                 %hx:%hx:%hx:%hx:%hx:%hx\n",
            ntoo(options->my_hw_addr, 5), ntoo(options->my_hw_addr, 4),
            ntoo(options->my_hw_addr, 3), ntoo(options->my_hw_addr, 2),
            ntoo(options->my_hw_addr, 1), ntoo(options->my_hw_addr, 0));
@@ -224,8 +232,8 @@ void options_print(const struct srv_opts *options) {
     printf("|-config router IPV4     %s\n", inet_ntoa(addr));
     addr.s_addr = htonl(options->conf_dns_addr);
     printf("|-config dns IPV4        %s\n", inet_ntoa(addr));
-    printf("|-config time address    %ud\n", options->conf_time_address);
-    printf("|-config time renewal    %ud\n", options->conf_time_renewal);
-    printf("|-config time rebinding  %ud\n", options->conf_time_rebinding);
+    printf("|-config time address    %d\n", options->conf_time_address);
+    printf("|-config time renewal    %d\n", options->conf_time_renewal);
+    printf("|-config time rebinding  %d\n", options->conf_time_rebinding);
 }
 
