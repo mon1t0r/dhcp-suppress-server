@@ -63,11 +63,14 @@ void dhcp_add_reply_options(struct dhcp_msg *msg,
 }
 
 size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct srv_opts *options,
-                      enum dhcp_msg_type msg_type_ack, net_addr_t srv_ip) {
+                      enum dhcp_msg_type msg_type_ack,
+                      net_addr_t srv_net_addr) {
     uint32_t opt_data;
     dhcp_opt_off_t offset;
 
+    /* Init DHCP reply header */
     dhcp_set_reply_header(msg);
+    /* If this is ACK message, set yiaddr to configured client address */
     if(msg_type_ack == dhcp_msg_type_ack) {
         msg->yiaddr = htonl(options->conf_client_addr);
     }
@@ -78,11 +81,13 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct srv_opts *options,
     opt_data = msg_type_ack;
     dhcp_opt(msg, &offset, dhcp_opt_msg_type, &opt_data, 1);
 
-    if(srv_ip != 0) {
-        opt_data = htonl(srv_ip);
+    /* Set server identification option, if present */
+    if(srv_net_addr != 0) {
+        opt_data = htonl(srv_net_addr);
         dhcp_opt(msg, &offset, dhcp_opt_srv_id, &opt_data, 4);
     }
 
+    /* If this is ACK message, also add configuration options */
     if(msg_type_ack == dhcp_msg_type_ack) {
         dhcp_add_reply_options(msg, options, &offset);
     }
@@ -97,6 +102,7 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct srv_opts *options) {
     uint32_t opt_data;
     dhcp_opt_off_t offset;
 
+    /* Init DHCP reply header */
     dhcp_set_reply_header(msg);
     msg->yiaddr = htonl(options->conf_client_addr);
     msg->siaddr = htonl(options->my_net_addr);
@@ -123,6 +129,7 @@ size_t dhcp_handle_request(struct dhcp_msg *msg,
     uint8_t *opt_data_ptr;
     net_addr_t srv_net_addr;
 
+    /* Check server identification option in request packet */
     if(dhcp_opt_get(msg, dhcp_opt_srv_id, &opt_data_ptr) == 4) {
         memcpy(&srv_net_addr, opt_data_ptr, sizeof(srv_net_addr));
         srv_net_addr = ntohl(srv_net_addr);
@@ -131,11 +138,16 @@ size_t dhcp_handle_request(struct dhcp_msg *msg,
         srv_net_addr = 0;
     }
 
+    /* If the request is for us, reply with ACK and set sender network address
+     * to our address */
     if(opt_data_ptr != NULL && srv_net_addr == options->my_net_addr) {
         *sender_net_addr = options->my_net_addr;
         return dhcp_reply_ack(msg, options, dhcp_msg_type_ack, srv_net_addr);
     }
 
+    /* The request is not for us, so send NAK with the sender address of
+     * the requested server (or 0, if there was no srv_id option).
+     * This is the part, where other DHCP server suppression happens */
     *sender_net_addr = srv_net_addr;
     return dhcp_reply_ack(msg, options, dhcp_msg_type_nak, srv_net_addr);
 }
@@ -148,19 +160,28 @@ ssize_t dhcp_msg_handle(struct dhcp_msg *msg, const struct srv_opts *options,
         return -1;
     }
 
+    /* Do not cache source address by default */
     *cache_src_addr = 0;
+    /* Sender network address is unspecified by default */
+    *sender_net_addr = 0;
 
     switch(*opt_data_ptr) {
-        case dhcp_msg_type_request:
-            return dhcp_handle_request(msg, options, sender_net_addr);
+        case dhcp_msg_type_discover:
+            /* Set sender network address to our address */
+            *sender_net_addr = options->my_net_addr;
+
+            /* Reply to discover with offer */
+            return dhcp_reply_offer(msg, options);
 
         case dhcp_msg_type_offer:
+            /* Set chache source address flag to 1, as this is probably
+             * an offer from another DHCP server in the network, and we should
+             * save it's MAC in order to use it in future */
             *cache_src_addr = 1;
             return 0;
 
-        case dhcp_msg_type_discover:
-            *sender_net_addr = options->my_net_addr;
-            return dhcp_reply_offer(msg, options);
+        case dhcp_msg_type_request:
+            return dhcp_handle_request(msg, options, sender_net_addr);
     }
 
     return -1;
@@ -230,6 +251,7 @@ bool dhcp_msg_unpack(struct dhcp_msg *msg, const struct srv_opts *options,
     offset = 0;
 
     eth_hdr = (struct ethhdr *) (buf + offset);
+    /* Check if Ethernet frame is intended for us or is broadcast */
     if(((
         eth_hdr->h_dest[0] != 255 ||
         eth_hdr->h_dest[1] != 255 ||
@@ -258,6 +280,7 @@ bool dhcp_msg_unpack(struct dhcp_msg *msg, const struct srv_opts *options,
     );
 
     ip_hdr = (struct iphdr *) (buf + offset);
+    /* Check if IP packet is intended for us or is broadcast */
     if((ip_hdr->daddr != htonl(INADDR_BROADCAST) &&
         ip_hdr->daddr != htonl(options->my_net_addr)) || 
         ip_hdr->protocol != 17) {
@@ -266,6 +289,7 @@ bool dhcp_msg_unpack(struct dhcp_msg *msg, const struct srv_opts *options,
     offset += ip_hdr->ihl * 4;
     *net_addr = ntohl(ip_hdr->saddr);
 
+    /* Check if UDP datagram is intended for us */
     udp_hdr = (struct udphdr *) (buf + offset);
     if(udp_hdr->dest != htons(options->dhcp_server_port) ||
         udp_hdr->source != htons(options->dhcp_client_port)) {
@@ -352,35 +376,55 @@ int main(int argc, char *argv[]) {
     printf("Initialized successfully\n");
     printf("Listening for incoming DHCP requests\n\n");
 
+    /* Main receive loop */
     while((buf_len = recv(socket_fd, buf,
                           packet_buf_size * sizeof(uint8_t), 0) > 0)) {
+        /* Unpack raw packet */
+        /* src_net_addr - network address of packet sender */
+        /* src_hw_addr - MAC address of packet sender */
         if(!dhcp_msg_unpack(&msg, &options, buf, buf_len,
                             &src_net_addr, &src_hw_addr)) {
             continue;
         }
 
+        /* Handle DHCP message */
+        /* After call, cache_src_addr will indicate if packet sender network
+         * and MAC addresses should be cached; sender_net_addr will contain
+         * network address, which will be used as source in outgoing packet */
         if((msg_len = dhcp_msg_handle(&msg, &options, &cache_src_addr,
                                       &sender_net_addr)) < 0) {
             continue;
         }
 
+        /* If cache source network and MAC address flag is set */
         if(cache_src_addr) {
+            /* If table entry count will become greater than max limit */
             if(mac_table->size_cur + 1 > options.mac_table_max_cnt) {
                 mt_clear(mac_table);
             }
+            /* Add network and MAC address pair */
             mt_add(mac_table, src_net_addr, src_hw_addr);
         }
 
+        if(msg_len == 0) {
+            continue;
+        }
+
+        /* Set source network address to address provided by dhcp_msg_handle */
         src_net_addr = sender_net_addr;
 
+        /* If source address should be the program's (our) server address */
         if(sender_net_addr == options.my_net_addr) {
             src_hw_addr = options.my_hw_addr;
+        /* Else if source address is not specified */
         } else if(sender_net_addr == 0) {
             src_hw_addr = 0;
+        /* Else look for MAC in MAC address table */
         } else {
             src_hw_addr = mt_get(mac_table, sender_net_addr);
         }
 
+        /* Pack raw packet */
         if((buf_len = dhcp_msg_pack(&msg, msg_len, &options, buf, src_net_addr,
                                     src_hw_addr)) < 0) {
             continue;
@@ -389,8 +433,10 @@ int main(int argc, char *argv[]) {
         memset(&addr, 0, sizeof(addr));
         addr.sll_ifindex = if_index;
         addr.sll_halen = ETH_ALEN;
+        /* Set destination MAC address to broadcast */
         memset(&addr.sll_addr, 255, 6);
 
+        /* Send packet */
         if(sendto(socket_fd, buf, buf_len, 0, (const struct sockaddr *) &addr,
                   sizeof(addr)) < 0) {
             perror("sendto()");
