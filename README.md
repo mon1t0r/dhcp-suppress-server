@@ -37,7 +37,7 @@ make
 
 ### Run
 ```
-sudo ./dhcp_server [OPTION]... [MY_ADDR] [MY_MAC]
+sudo release/dhcp_server [OPTION]... [MY_ADDR] [MY_MAC]
 ```
 
 ### Options
