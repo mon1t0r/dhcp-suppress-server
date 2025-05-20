@@ -15,10 +15,14 @@ other DHCP server in network.
 
 Currently the application DHCP server is only sending broadcast DHCP messages.
 
-The system works the best in networks, where latency from potential client to
+The program works the best in networks, where latency from potential client to
 the original DHCP server is higher, than to the application DHCP server, as
 typically DHCP client implementations will accept first DHCP offer they
 receive.
+
+### Disclaimer
+This project is for educational purposes only and can not be used for any
+malicious purposes.
 
 ## Build and run
 ### Requirements
