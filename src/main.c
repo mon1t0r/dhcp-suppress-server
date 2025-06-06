@@ -24,7 +24,7 @@ enum {
     packet_buf_size = 65536
 };
 
-void dhcp_set_reply_header(struct dhcp_msg *msg) {
+static void dhcp_set_reply_header(struct dhcp_msg *msg) {
     msg->opcode = dhcp_opcode_reply;
     msg->hops = 0;
     msg->secs = 0;
@@ -35,9 +35,9 @@ void dhcp_set_reply_header(struct dhcp_msg *msg) {
     msg->giaddr = 0;
 }
 
-void dhcp_add_reply_options(struct dhcp_msg *msg,
-                            const struct srv_opts *options,
-                            dhcp_opt_off_t *offset) {
+static void dhcp_add_reply_options(struct dhcp_msg *msg,
+                                   const struct srv_opts *options,
+                                   dhcp_opt_off_t *offset) {
     uint32_t opt_data;
 
     opt_data = htonl(options->conf_time_address);
@@ -62,9 +62,10 @@ void dhcp_add_reply_options(struct dhcp_msg *msg,
     dhcp_opt(msg, offset, dhcp_opt_dns, &opt_data, 4);
 }
 
-size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct srv_opts *options,
-                      enum dhcp_msg_type msg_type_ack,
-                      net_addr_t srv_net_addr) {
+static size_t dhcp_reply_ack(struct dhcp_msg *msg,
+                             const struct srv_opts *options,
+                             enum dhcp_msg_type msg_type_ack,
+                             net_addr_t srv_net_addr) {
     uint32_t opt_data;
     dhcp_opt_off_t offset;
 
@@ -98,7 +99,8 @@ size_t dhcp_reply_ack(struct dhcp_msg *msg, const struct srv_opts *options,
     offset * sizeof(uint8_t);
 }
 
-size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct srv_opts *options) {
+static size_t dhcp_reply_offer(struct dhcp_msg *msg,
+                               const struct srv_opts *options) {
     uint32_t opt_data;
     dhcp_opt_off_t offset;
 
@@ -123,9 +125,9 @@ size_t dhcp_reply_offer(struct dhcp_msg *msg, const struct srv_opts *options) {
     offset * sizeof(uint8_t);
 }
 
-size_t dhcp_handle_request(struct dhcp_msg *msg,
-                           const struct srv_opts *options,
-                           net_addr_t *sender_net_addr) {
+static size_t dhcp_handle_request(struct dhcp_msg *msg,
+                                  const struct srv_opts *options,
+                                  net_addr_t *sender_net_addr) {
     uint8_t *opt_data_ptr;
     net_addr_t srv_net_addr;
 
@@ -152,8 +154,10 @@ size_t dhcp_handle_request(struct dhcp_msg *msg,
     return dhcp_reply_ack(msg, options, dhcp_msg_type_nak, srv_net_addr);
 }
 
-ssize_t dhcp_msg_handle(struct dhcp_msg *msg, const struct srv_opts *options,
-                        bool *cache_src_addr, net_addr_t *sender_net_addr) {
+static ssize_t dhcp_msg_handle(struct dhcp_msg *msg,
+                               const struct srv_opts *options,
+                               bool *cache_src_addr,
+                               net_addr_t *sender_net_addr) {
     uint8_t *opt_data_ptr;
 
     if(dhcp_opt_get(msg, dhcp_opt_msg_type, &opt_data_ptr) != 1) {
@@ -187,9 +191,9 @@ ssize_t dhcp_msg_handle(struct dhcp_msg *msg, const struct srv_opts *options,
     return -1;
 }
 
-ssize_t dhcp_msg_pack(const struct dhcp_msg *msg, ssize_t msg_len,
-                      const struct srv_opts *options, uint8_t *buf,
-                      net_addr_t net_addr, hw_addr_t hw_addr) {
+static ssize_t dhcp_msg_pack(const struct dhcp_msg *msg, ssize_t msg_len,
+                             const struct srv_opts *options, uint8_t *buf,
+                             net_addr_t net_addr, hw_addr_t hw_addr) {
     size_t offset;
     struct ethhdr *eth_hdr;
     struct iphdr *ip_hdr;
@@ -239,9 +243,10 @@ ssize_t dhcp_msg_pack(const struct dhcp_msg *msg, ssize_t msg_len,
     return offset;
 }
 
-bool dhcp_msg_unpack(struct dhcp_msg *msg, const struct srv_opts *options,
-                     const uint8_t *buf, ssize_t buf_len,
-                     net_addr_t *net_addr, hw_addr_t *hw_addr) {
+static bool dhcp_msg_unpack(struct dhcp_msg *msg,
+                            const struct srv_opts *options,
+                            const uint8_t *buf, ssize_t buf_len,
+                            net_addr_t *net_addr, hw_addr_t *hw_addr) {
     size_t offset;
     struct ethhdr *eth_hdr;
     struct iphdr *ip_hdr;
@@ -265,7 +270,7 @@ bool dhcp_msg_unpack(struct dhcp_msg *msg, const struct srv_opts *options,
         eth_hdr->h_dest[2] != ntoo(options->my_hw_addr, 2) ||
         eth_hdr->h_dest[3] != ntoo(options->my_hw_addr, 3) ||
         eth_hdr->h_dest[4] != ntoo(options->my_hw_addr, 4) ||
-        eth_hdr->h_dest[5] != ntoo(options->my_hw_addr, 5) 
+        eth_hdr->h_dest[5] != ntoo(options->my_hw_addr, 5)
     )) || ntohs(eth_hdr->h_proto) != ETH_P_IP) {
         return false;
     }
@@ -312,7 +317,7 @@ bool dhcp_msg_unpack(struct dhcp_msg *msg, const struct srv_opts *options,
     return true;
 }
 
-int create_socket(void) {
+static int create_socket(void) {
     int socket_fd;
 
     if((socket_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP))) < 0) {
@@ -323,7 +328,7 @@ int create_socket(void) {
     return socket_fd;
 }
 
-void bind_socket(int socket_fd, int if_index) {
+static void bind_socket(int socket_fd, int if_index) {
     struct sockaddr_ll addr;
 
     memset(&addr, 0, sizeof(addr));
@@ -379,16 +384,16 @@ int main(int argc, char *argv[]) {
     /* Main receive loop */
     while((buf_len = recv(socket_fd, buf,
                           packet_buf_size * sizeof(uint8_t), 0) > 0)) {
-        /* Unpack raw packet */
-        /* src_net_addr - network address of packet sender */
-        /* src_hw_addr - MAC address of packet sender */
+        /* Unpack raw packet
+         * src_net_addr - network address of packet sender
+         * src_hw_addr - MAC address of packet sender */
         if(!dhcp_msg_unpack(&msg, &options, buf, buf_len,
                             &src_net_addr, &src_hw_addr)) {
             continue;
         }
 
-        /* Handle DHCP message */
-        /* After call, cache_src_addr will indicate if packet sender network
+        /* Handle DHCP message
+         * After call, cache_src_addr will indicate if packet sender network
          * and MAC addresses should be cached; sender_net_addr will contain
          * network address, which will be used as source in outgoing packet */
         if((msg_len = dhcp_msg_handle(&msg, &options, &cache_src_addr,
@@ -440,10 +445,11 @@ int main(int argc, char *argv[]) {
         if(sendto(socket_fd, buf, buf_len, 0, (const struct sockaddr *) &addr,
                   sizeof(addr)) < 0) {
             perror("sendto()");
-            exit(EXIT_FAILURE);
+            goto exit;
         }
     }
 
+exit:
     mt_free(mac_table);
     close(socket_fd);
     free(buf);

@@ -29,20 +29,20 @@ static const struct option longopts[] = {
 
 static const char optstring[] = "I:S:C:s:t:i:b:m:r:d:a:n:e:";
 
-void options_error(const char *exec_name, const char *reason) {
+static void options_error(const char *exec_name, const char *reason) {
     fprintf(stderr, error_msg, exec_name, reason);
     exit(EXIT_FAILURE);
 }
 
-bool options_parse_time(const char *arg, uint32_t *time) {
+static bool options_parse_time(const char *arg, uint32_t *time) {
     return sscanf(arg, "%ud", time) == 1;
 }
 
-bool options_parse_num(const char *arg, uint16_t *port) {
+static bool options_parse_num(const char *arg, uint16_t *port) {
     return sscanf(arg, "%hu", port) == 1;
 }
 
-bool options_parse_net_addr(const char *arg, net_addr_t *addr) {
+static bool options_parse_net_addr(const char *arg, net_addr_t *addr) {
     if(inet_pton(AF_INET, arg, addr) != 1) {
         return false;
     }
@@ -52,7 +52,7 @@ bool options_parse_net_addr(const char *arg, net_addr_t *addr) {
     return true;
 }
 
-bool options_parse_hw_addr(const char *arg, hw_addr_t *addr) {
+static bool options_parse_hw_addr(const char *arg, hw_addr_t *addr) {
     uint16_t addr_bytes[6];
     int i;
 
@@ -74,7 +74,7 @@ bool options_parse_hw_addr(const char *arg, hw_addr_t *addr) {
     return true;
 }
 
-void options_set_default(struct srv_opts *options) {
+static void options_set_default(struct srv_opts *options) {
     memset(options, 0, sizeof(*options));
 
     strcpy(options->interface_name, "eth0");
