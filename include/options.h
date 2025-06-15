@@ -24,7 +24,7 @@ struct srv_opts {
     uint32_t conf_time_rebinding;
 };
 
-struct srv_opts options_parse(int argc, char *argv[]);
+struct srv_opts options_parse(int argc, char * const *argv);
 
 void options_print(const struct srv_opts *options);
 

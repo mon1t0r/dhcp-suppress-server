@@ -2,7 +2,8 @@
 
 #include "dhcp.h"
 
-void dhcp_opt_begin(struct dhcp_msg *msg, dhcp_opt_off_t *offset) {
+void dhcp_opt_begin(struct dhcp_msg *msg, dhcp_opt_off_t *offset)
+{
     if(msg == NULL) {
         *offset = -1;
         return;
@@ -14,7 +15,8 @@ void dhcp_opt_begin(struct dhcp_msg *msg, dhcp_opt_off_t *offset) {
 }
 
 void dhcp_opt(struct dhcp_msg *msg, dhcp_opt_off_t *offset, enum dhcp_opt opt,
-              const void *opt_data, size_t opt_data_len) {
+              const void *opt_data, size_t opt_data_len)
+{
     uint8_t *opts_ptr;
 
     if(*offset < 0) {
@@ -35,7 +37,8 @@ void dhcp_opt(struct dhcp_msg *msg, dhcp_opt_off_t *offset, enum dhcp_opt opt,
     *offset += opt_data_len + 2;
 }
 
-void dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_off_t *offset) {
+void dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_off_t *offset)
+{
     if(*offset < 0) {
         return;
     }
@@ -50,7 +53,8 @@ void dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_off_t *offset) {
 }
 
 ssize_t dhcp_opt_get(struct dhcp_msg *msg, enum dhcp_opt opt,
-                     uint8_t **opt_data_ptr) {
+                     uint8_t **opt_data_ptr)
+{
     size_t opt_pos;
 
     opt_pos = 0;

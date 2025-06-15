@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "mac_table.h"
 #include "dhcp.h"
 
 struct node {
@@ -15,14 +16,16 @@ struct mac_table {
     struct node **nodes;
 };
 
-static int hash(int x) {
+static int hash(int x)
+{
     x = ((x >> 16) ^ x) * 0x45d9f3bu;
     x = ((x >> 16) ^ x) * 0x45d9f3bu;
     x = (x >> 16) ^ x;
     return x;
 }
 
-struct mac_table *mt_create(int size) {
+struct mac_table *mt_create(int size)
+{
     struct mac_table *mt;
 
     mt = malloc(sizeof(struct mac_table));
@@ -41,7 +44,8 @@ struct mac_table *mt_create(int size) {
     return mt;
 }
 
-void mt_add(struct mac_table *mt, net_addr_t key, hw_addr_t val) {
+void mt_add(struct mac_table *mt, net_addr_t key, hw_addr_t val)
+{
     int index;
     struct node **node;
 
@@ -69,7 +73,8 @@ void mt_add(struct mac_table *mt, net_addr_t key, hw_addr_t val) {
     mt->size_cur++;
 }
 
-hw_addr_t mt_get(const struct mac_table *mt, net_addr_t key) {
+hw_addr_t mt_get(const struct mac_table *mt, net_addr_t key)
+{
     int index;
     struct node *node;
 
@@ -86,7 +91,13 @@ hw_addr_t mt_get(const struct mac_table *mt, net_addr_t key) {
     return 0;
 }
 
-void mt_clear(struct mac_table *mt) {
+int mt_cur_size(struct mac_table *mt)
+{
+    return mt->size_cur;
+}
+
+void mt_clear(struct mac_table *mt)
+{
     int i;
     struct node *node;
     struct node *node_next;
@@ -104,7 +115,8 @@ void mt_clear(struct mac_table *mt) {
     mt->size_cur = 0;
 }
 
-void mt_free(struct mac_table *mt) {
+void mt_free(struct mac_table *mt)
+{
     int i;
     struct node *node;
     struct node *node_next;

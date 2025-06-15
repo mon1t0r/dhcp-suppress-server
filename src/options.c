@@ -29,20 +29,24 @@ static const struct option longopts[] = {
 
 static const char optstring[] = "I:S:C:s:t:i:b:m:r:d:a:n:e:";
 
-static void options_error(const char *exec_name, const char *reason) {
+static void options_error(const char *exec_name, const char *reason)
+{
     fprintf(stderr, error_msg, exec_name, reason);
     exit(EXIT_FAILURE);
 }
 
-static bool options_parse_time(const char *arg, uint32_t *time) {
+static bool options_parse_time(const char *arg, uint32_t *time)
+{
     return sscanf(arg, "%ud", time) == 1;
 }
 
-static bool options_parse_num(const char *arg, uint16_t *port) {
+static bool options_parse_num(const char *arg, uint16_t *port)
+{
     return sscanf(arg, "%hu", port) == 1;
 }
 
-static bool options_parse_net_addr(const char *arg, net_addr_t *addr) {
+static bool options_parse_net_addr(const char *arg, net_addr_t *addr)
+{
     if(inet_pton(AF_INET, arg, addr) != 1) {
         return false;
     }
@@ -52,7 +56,8 @@ static bool options_parse_net_addr(const char *arg, net_addr_t *addr) {
     return true;
 }
 
-static bool options_parse_hw_addr(const char *arg, hw_addr_t *addr) {
+static bool options_parse_hw_addr(const char *arg, hw_addr_t *addr)
+{
     uint16_t addr_bytes[6];
     int i;
 
@@ -74,7 +79,8 @@ static bool options_parse_hw_addr(const char *arg, hw_addr_t *addr) {
     return true;
 }
 
-static void options_set_default(struct srv_opts *options) {
+static void options_set_default(struct srv_opts *options)
+{
     memset(options, 0, sizeof(*options));
 
     strcpy(options->interface_name, "eth0");
@@ -92,7 +98,8 @@ static void options_set_default(struct srv_opts *options) {
     options->conf_time_rebinding = 0xFFFFFF;
 }
 
-struct srv_opts options_parse(int argc, char *argv[]) {
+struct srv_opts options_parse(int argc, char * const *argv)
+{
     extern int optind;
     extern char *optarg;
 
@@ -205,8 +212,10 @@ struct srv_opts options_parse(int argc, char *argv[]) {
     return options;
 }
 
-void options_print(const struct srv_opts *options) {
-    struct in_addr addr;
+void options_print(const struct srv_opts *options)
+{
+    char buf[INET_ADDRSTRLEN];
+    net_addr_t addr;
 
     printf("Options\n");
     printf("|-interface              %s\n", options->interface_name);
@@ -215,23 +224,41 @@ void options_print(const struct srv_opts *options) {
     printf("|-MAC table size         %hu\n", options->mac_table_size);
     printf("|-MAC table max count    %hu\n", options->mac_table_max_cnt);
 
-    addr.s_addr = htonl(options->my_net_addr);
-    printf("|-my IPv4                %s\n", inet_ntoa(addr));
+    addr = htonl(options->my_net_addr);
+    if(inet_ntop(AF_INET, &addr, buf, sizeof(buf))) {
+        printf("|-my IPv4                %s\n", buf);
+    }
+
     printf("|-my MAC                 %hx:%hx:%hx:%hx:%hx:%hx\n",
            ntoo(options->my_hw_addr, 5), ntoo(options->my_hw_addr, 4),
            ntoo(options->my_hw_addr, 3), ntoo(options->my_hw_addr, 2),
            ntoo(options->my_hw_addr, 1), ntoo(options->my_hw_addr, 0));
 
-    addr.s_addr = htonl(options->conf_client_addr);
-    printf("|-config client IPv4     %s\n", inet_ntoa(addr));
-    addr.s_addr = htonl(options->conf_broadcast_addr);
-    printf("|-config broadcast IPV4  %s\n", inet_ntoa(addr));
-    addr.s_addr = htonl(options->conf_subnet_mask);
-    printf("|-config network mask    %s\n", inet_ntoa(addr));
-    addr.s_addr = htonl(options->conf_router_addr);
-    printf("|-config router IPV4     %s\n", inet_ntoa(addr));
-    addr.s_addr = htonl(options->conf_dns_addr);
-    printf("|-config dns IPV4        %s\n", inet_ntoa(addr));
+    addr = htonl(options->conf_client_addr);
+    if(inet_ntop(AF_INET, &addr, buf, sizeof(buf))) {
+        printf("|-config client IPv4     %s\n", buf);
+    }
+
+    addr = htonl(options->conf_broadcast_addr);
+    if(inet_ntop(AF_INET, &addr, buf, sizeof(buf))) {
+        printf("|-config broadcast IPV4  %s\n", buf);
+    }
+
+    addr = htonl(options->conf_subnet_mask);
+    if(inet_ntop(AF_INET, &addr, buf, sizeof(buf))) {
+        printf("|-config network mask    %s\n", buf);
+    }
+
+    addr = htonl(options->conf_router_addr);
+    if(inet_ntop(AF_INET, &addr, buf, sizeof(buf))) {
+        printf("|-config router IPV4     %s\n", buf);
+    }
+
+    addr = htonl(options->conf_dns_addr);
+    if(inet_ntop(AF_INET, &addr, buf, sizeof(buf))) {
+        printf("|-config dns IPV4        %s\n", buf);
+    }
+
     printf("|-config time address    %d\n", options->conf_time_address);
     printf("|-config time renewal    %d\n", options->conf_time_renewal);
     printf("|-config time rebinding  %d\n", options->conf_time_rebinding);

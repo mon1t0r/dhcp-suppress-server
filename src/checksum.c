@@ -2,7 +2,10 @@
 #include <stddef.h>
 #include <netinet/in.h>
 
-uint16_t compute_ip_checksum(uint16_t* ptr, size_t cnt) {
+#include "checksum.h"
+
+uint16_t compute_ip_checksum(uint16_t* ptr, size_t cnt)
+{
     uint32_t sum;
 
     sum = 0;

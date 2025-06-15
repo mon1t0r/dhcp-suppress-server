@@ -5,17 +5,15 @@
 
 struct node;
 
-struct mac_table {
-    int size;
-    int size_cur;
-    struct node **nodes;
-};
+struct mac_table;
 
 struct mac_table *mt_create(int size);
 
 void mt_add(struct mac_table *mt, net_addr_t key, hw_addr_t val);
 
 hw_addr_t mt_get(const struct mac_table *mt, net_addr_t key);
+
+int mt_cur_size(struct mac_table *mt);
 
 void mt_clear(struct mac_table *mt);
 

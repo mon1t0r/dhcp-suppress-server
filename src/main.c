@@ -20,11 +20,10 @@
 #include "checksum.h"
 #include "mac_table.h"
 
-enum {
-    packet_buf_size = 65536
-};
+enum { packet_buf_size = 65536 };
 
-static void dhcp_set_reply_header(struct dhcp_msg *msg) {
+static void dhcp_set_reply_header(struct dhcp_msg *msg)
+{
     msg->opcode = dhcp_opcode_reply;
     msg->hops = 0;
     msg->secs = 0;
@@ -37,7 +36,8 @@ static void dhcp_set_reply_header(struct dhcp_msg *msg) {
 
 static void dhcp_add_reply_options(struct dhcp_msg *msg,
                                    const struct srv_opts *options,
-                                   dhcp_opt_off_t *offset) {
+                                   dhcp_opt_off_t *offset)
+{
     uint32_t opt_data;
 
     opt_data = htonl(options->conf_time_address);
@@ -65,7 +65,8 @@ static void dhcp_add_reply_options(struct dhcp_msg *msg,
 static size_t dhcp_reply_ack(struct dhcp_msg *msg,
                              const struct srv_opts *options,
                              enum dhcp_msg_type msg_type_ack,
-                             net_addr_t srv_net_addr) {
+                             net_addr_t srv_net_addr)
+{
     uint32_t opt_data;
     dhcp_opt_off_t offset;
 
@@ -100,7 +101,8 @@ static size_t dhcp_reply_ack(struct dhcp_msg *msg,
 }
 
 static size_t dhcp_reply_offer(struct dhcp_msg *msg,
-                               const struct srv_opts *options) {
+                               const struct srv_opts *options)
+{
     uint32_t opt_data;
     dhcp_opt_off_t offset;
 
@@ -127,7 +129,8 @@ static size_t dhcp_reply_offer(struct dhcp_msg *msg,
 
 static size_t dhcp_handle_request(struct dhcp_msg *msg,
                                   const struct srv_opts *options,
-                                  net_addr_t *sender_net_addr) {
+                                  net_addr_t *sender_net_addr)
+{
     uint8_t *opt_data_ptr;
     net_addr_t srv_net_addr;
 
@@ -157,7 +160,8 @@ static size_t dhcp_handle_request(struct dhcp_msg *msg,
 static ssize_t dhcp_msg_handle(struct dhcp_msg *msg,
                                const struct srv_opts *options,
                                bool *cache_src_addr,
-                               net_addr_t *sender_net_addr) {
+                               net_addr_t *sender_net_addr)
+{
     uint8_t *opt_data_ptr;
 
     if(dhcp_opt_get(msg, dhcp_opt_msg_type, &opt_data_ptr) != 1) {
@@ -193,7 +197,8 @@ static ssize_t dhcp_msg_handle(struct dhcp_msg *msg,
 
 static ssize_t dhcp_msg_pack(const struct dhcp_msg *msg, ssize_t msg_len,
                              const struct srv_opts *options, uint8_t *buf,
-                             net_addr_t net_addr, hw_addr_t hw_addr) {
+                             net_addr_t net_addr, hw_addr_t hw_addr)
+{
     size_t offset;
     struct ethhdr *eth_hdr;
     struct iphdr *ip_hdr;
@@ -246,7 +251,8 @@ static ssize_t dhcp_msg_pack(const struct dhcp_msg *msg, ssize_t msg_len,
 static bool dhcp_msg_unpack(struct dhcp_msg *msg,
                             const struct srv_opts *options,
                             const uint8_t *buf, ssize_t buf_len,
-                            net_addr_t *net_addr, hw_addr_t *hw_addr) {
+                            net_addr_t *net_addr, hw_addr_t *hw_addr)
+{
     size_t offset;
     struct ethhdr *eth_hdr;
     struct iphdr *ip_hdr;
@@ -317,7 +323,8 @@ static bool dhcp_msg_unpack(struct dhcp_msg *msg,
     return true;
 }
 
-static int create_socket(void) {
+static int create_socket(void)
+{
     int socket_fd;
 
     if((socket_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP))) < 0) {
@@ -328,7 +335,8 @@ static int create_socket(void) {
     return socket_fd;
 }
 
-static void bind_socket(int socket_fd, int if_index) {
+static void bind_socket(int socket_fd, int if_index)
+{
     struct sockaddr_ll addr;
 
     memset(&addr, 0, sizeof(addr));
@@ -342,7 +350,8 @@ static void bind_socket(int socket_fd, int if_index) {
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char * const *argv)
+{
     struct srv_opts options;
 
     int socket_fd;
@@ -351,7 +360,7 @@ int main(int argc, char *argv[]) {
     uint8_t *buf;
     ssize_t buf_len;
 
-    struct mac_table *mac_table;
+    struct mac_table *mt;
 
     struct dhcp_msg msg;
     ssize_t msg_len;
@@ -376,7 +385,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    mac_table = mt_create(options.mac_table_size);
+    mt = mt_create(options.mac_table_size);
 
     printf("Initialized successfully\n");
     printf("Listening for incoming DHCP requests\n\n");
@@ -404,11 +413,11 @@ int main(int argc, char *argv[]) {
         /* If cache source network and MAC address flag is set */
         if(cache_src_addr) {
             /* If table entry count will become greater than max limit */
-            if(mac_table->size_cur + 1 > options.mac_table_max_cnt) {
-                mt_clear(mac_table);
+            if(mt_cur_size(mt) + 1 > options.mac_table_max_cnt) {
+                mt_clear(mt);
             }
             /* Add network and MAC address pair */
-            mt_add(mac_table, src_net_addr, src_hw_addr);
+            mt_add(mt, src_net_addr, src_hw_addr);
         }
 
         if(msg_len == 0) {
@@ -426,7 +435,7 @@ int main(int argc, char *argv[]) {
             src_hw_addr = 0;
         /* Else look for MAC in MAC address table */
         } else {
-            src_hw_addr = mt_get(mac_table, sender_net_addr);
+            src_hw_addr = mt_get(mt, sender_net_addr);
         }
 
         /* Pack raw packet */
@@ -450,7 +459,7 @@ int main(int argc, char *argv[]) {
     }
 
 exit:
-    mt_free(mac_table);
+    mt_free(mt);
     close(socket_fd);
     free(buf);
 
