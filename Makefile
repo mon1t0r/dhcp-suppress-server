@@ -49,7 +49,7 @@ $(DBGTARGET): $(DBGOBJS)
 
 $(DBGDIR)/$(OBJDIR)/%.o : $(SRCDIR)/%.c
 	@$(mkdir) $(@D)
-	$(CC) $(CFLAGS) $(DBGCFLAGS) -c $^ $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) $(DBGCFLAGS) -c $< $(LDLIBS) -o $@
 
 # Other rules
 clean:
