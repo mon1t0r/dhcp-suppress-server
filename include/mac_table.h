@@ -3,8 +3,6 @@
 
 #include "dhcp.h"
 
-struct node;
-
 struct mac_table;
 
 struct mac_table *mt_create(int size);

@@ -15,10 +15,12 @@ enum {
 /* Hardware address data type */
 /* Type size can be greater, than is needed to store hardware address */
 typedef uint64_t hw_addr_t;
+
 /* Network address data type */
 typedef uint32_t net_addr_t;
-/* DHCP options filling offset */
-typedef ssize_t dhcp_opt_off_t;
+
+/* DHCP option size type */
+typedef ssize_t dhcp_opt_size_t;
 
 /* Macro for converting octets of network address to net_addr_t
  * (octets to number) in host byte order */
@@ -87,14 +89,14 @@ enum dhcp_msg_type {
     dhcp_msg_type_inform
 };
 
-void dhcp_opt_begin(struct dhcp_msg *msg, dhcp_opt_off_t *offset);
+void dhcp_opt_begin(struct dhcp_msg *msg, dhcp_opt_size_t *offset);
 
-void dhcp_opt(struct dhcp_msg *msg, dhcp_opt_off_t *offset, enum dhcp_opt opt,
+void dhcp_opt(struct dhcp_msg *msg, dhcp_opt_size_t *offset, enum dhcp_opt opt,
               const void *opt_data, size_t opt_data_len);
 
-void dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_off_t *offset);
+void dhcp_opt_end(struct dhcp_msg *msg, dhcp_opt_size_t *offset);
 
-ssize_t dhcp_opt_get(struct dhcp_msg *msg, enum dhcp_opt opt,
-                     uint8_t **opt_data_ptr);
+ssize_t
+dhcp_opt_get(struct dhcp_msg *msg, enum dhcp_opt opt, uint8_t **opt_data_ptr);
 
 #endif

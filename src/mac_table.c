@@ -4,8 +4,8 @@
 #include "mac_table.h"
 #include "dhcp.h"
 
-struct node {
-    struct node *next;
+struct mac_table_node {
+    struct mac_table_node *next;
     net_addr_t key;
     hw_addr_t value;
 };
@@ -13,7 +13,7 @@ struct node {
 struct mac_table {
     int size;
     int size_cur;
-    struct node **nodes;
+    struct mac_table_node **nodes;
 };
 
 static int hash(int x)
@@ -35,7 +35,7 @@ struct mac_table *mt_create(int size)
     }
     mt->size = size;
     mt->size_cur = 0;
-    mt->nodes = calloc(size, sizeof(struct node *));
+    mt->nodes = calloc(size, sizeof(struct mac_table_node *));
     if(mt->nodes == NULL) {
         perror("malloc()");
         exit(EXIT_FAILURE);
@@ -47,7 +47,7 @@ struct mac_table *mt_create(int size)
 void mt_add(struct mac_table *mt, net_addr_t key, hw_addr_t val)
 {
     int index;
-    struct node **node;
+    struct mac_table_node **node;
 
     index = hash(key) % mt->size;
 
@@ -61,7 +61,7 @@ void mt_add(struct mac_table *mt, net_addr_t key, hw_addr_t val)
         node = &(*node)->next;
     }
 
-    *node = malloc(sizeof(struct node));
+    *node = malloc(sizeof(struct mac_table_node));
     if(*node == NULL) {
         perror("malloc()");
         exit(EXIT_FAILURE);
@@ -76,7 +76,7 @@ void mt_add(struct mac_table *mt, net_addr_t key, hw_addr_t val)
 hw_addr_t mt_get(const struct mac_table *mt, net_addr_t key)
 {
     int index;
-    struct node *node;
+    struct mac_table_node *node;
 
     index = hash(key) % mt->size;
 
@@ -99,8 +99,8 @@ int mt_cur_size(struct mac_table *mt)
 void mt_clear(struct mac_table *mt)
 {
     int i;
-    struct node *node;
-    struct node *node_next;
+    struct mac_table_node *node;
+    struct mac_table_node *node_next;
 
     for(i = 0; i < mt->size; i++) {
         node = mt->nodes[i];
@@ -118,8 +118,8 @@ void mt_clear(struct mac_table *mt)
 void mt_free(struct mac_table *mt)
 {
     int i;
-    struct node *node;
-    struct node *node_next;
+    struct mac_table_node *node;
+    struct mac_table_node *node_next;
 
     for(i = 0; i < mt->size; i++) {
         node = mt->nodes[i];

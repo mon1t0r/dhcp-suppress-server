@@ -6,7 +6,7 @@
 
 #include "if_utils.h"
 
-int get_interface_index(int socket_fd, const char *interface_name)
+int interface_get_index(int socket_fd, const char *interface_name)
 {
     struct ifreq ifreq;
 

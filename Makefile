@@ -21,7 +21,7 @@ RELCFLAGS:=-O3
 DBGDIR:=debug
 DBGTARGET:=$(DBGDIR)/$(TARGET)
 DBGOBJS:=$(addprefix $(DBGDIR)/, $(OBJS))
-DBGCFLAGS:=-O0 -Werror -ansi -pedantic -g
+DBGCFLAGS:=-O0 -Werror -std=c99 -pedantic -g
 
 # Utility commands
 rm:=rm -rf
