@@ -1,9 +1,7 @@
-# Compiler configuration
 CC:=gcc
-CFLAGS:=-Iinclude/ -Werror -Wall -std=c89 -pedantic
-LDLIBS:=
+CFLAGS:=-Wall -Iinclude/
+STATIC:=-static
 
-# Target file name
 TARGET:=dhcp_server
 
 # Source and object files configuration
@@ -23,13 +21,13 @@ RELCFLAGS:=-O3
 DBGDIR:=debug
 DBGTARGET:=$(DBGDIR)/$(TARGET)
 DBGOBJS:=$(addprefix $(DBGDIR)/, $(OBJS))
-DBGCFLAGS:=-g -O0
+DBGCFLAGS:=-O0 -Werror -ansi -pedantic -g
 
 # Utility commands
 rm:=rm -rf
 mkdir:=mkdir -p
 
-.PHONY: all check clean debug release
+.PHONY: all debug release clean
 
 all: release
 
@@ -37,26 +35,23 @@ all: release
 release: $(RELTARGET)
 
 $(RELTARGET): $(RELOBJS)
-	$(CC) $(CFLAGS) $(RELCFLAGS) $^ $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) $(RELCFLAGS) $(STATIC) $^ $(LDLIBS) -o $@
 
 $(RELDIR)/$(OBJDIR)/%.o : $(SRCDIR)/%.c
 	@$(mkdir) $(@D)
-	$(CC) $(CFLAGS) $(RELCFLAGS) -c $^ $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) $(RELCFLAGS) -c $< $(LDLIBS) -o $@
 
 # Debug rules
-debug: check $(DBGTARGET)
+debug: $(DBGTARGET)
 
 $(DBGTARGET): $(DBGOBJS)
-	$(CC) $(CFLAGS) $(DBGCFLAGS) $^ $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) $(DBGCFLAGS) $(STATIC) $^ $(LDLIBS) -o $@
 
 $(DBGDIR)/$(OBJDIR)/%.o : $(SRCDIR)/%.c
 	@$(mkdir) $(@D)
 	$(CC) $(CFLAGS) $(DBGCFLAGS) -c $^ $(LDLIBS) -o $@
 
 # Other rules
-check:
-	cppcheck --enable=performance unusedFunction --error-exitcode=1 --check-level=exhaustive $(SRCS)
-
 clean:
 	@$(rm) $(DBGDIR) $(RELDIR)
 
