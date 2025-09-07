@@ -2,6 +2,8 @@ CC:=gcc
 CFLAGS:=-Wall -Iinclude/
 STATIC:=-static
 
+LDLIBS:=
+
 TARGET:=dhcp_server
 
 # Source and object files configuration
@@ -21,7 +23,7 @@ RELCFLAGS:=-O3
 DBGDIR:=debug
 DBGTARGET:=$(DBGDIR)/$(TARGET)
 DBGOBJS:=$(addprefix $(DBGDIR)/, $(OBJS))
-DBGCFLAGS:=-O0 -Werror -std=c99 -pedantic -g
+DBGCFLAGS:=-O0 -Werror -std=c99 -g
 
 # Utility commands
 rm:=rm -rf

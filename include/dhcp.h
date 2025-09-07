@@ -100,3 +100,4 @@ ssize_t
 dhcp_opt_get(struct dhcp_msg *msg, enum dhcp_opt opt, uint8_t **opt_data_ptr);
 
 #endif
+

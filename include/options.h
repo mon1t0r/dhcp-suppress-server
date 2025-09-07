@@ -29,3 +29,4 @@ struct srv_opts options_parse(int argc, char * const *argv);
 void options_print(const struct srv_opts *options);
 
 #endif
+

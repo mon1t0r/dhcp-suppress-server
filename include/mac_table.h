@@ -18,3 +18,4 @@ void mt_clear(struct mac_table *mt);
 void mt_free(struct mac_table *mt);
 
 #endif
+
